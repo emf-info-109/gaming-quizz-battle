@@ -112,8 +112,19 @@ Index principaux : `players.token_hash` (unique), `players.last_seen_at` (joueur
 `games.code` (unique), `games(status, created_at)`, `answers(player_id)`, `game_players(player_id)`.
 
 Le schéma est dans `database/migrations/001_initial_schema.sql`, les données initiales dans
-`database/seeds/`. L'outil `backend/src/cli/db.ts` applique les migrations une seule fois, dans
-l'ordre, en prenant un verrou MySQL (`GET_LOCK`) pour que deux VM ne migrent jamais en même temps.
+`database/seeds/`.
+
+**Initialisation automatique** (`AUTO_MIGRATE=true`, par défaut) : au démarrage, l'API applique
+les migrations manquantes puis les seeds nouveaux ou modifiés (empreintes SHA-256 enregistrées
+dans `schema_migrations` et `schema_seeds`). Sur une base vide, le premier démarrage crée donc
+les tables et les 140 questions ; les démarrages suivants ne refont rien. Un verrou MySQL
+(`GET_LOCK`) garantit que deux VM qui démarrent en même temps ne le font qu'une fois. Tant que
+cette initialisation n'a pas réussi (MySQL injoignable, droits insuffisants…), `/ready` renvoie
+`503 INITIALIZING` et l'API réessaie toutes les 3 à 30 secondes, avec un message d'aide dans les
+logs (`database_init_failed`, champ `hint`).
+
+L'outil `backend/src/cli/db.ts` (`check`, `migrate`, `seed`, `setup`, `status`) permet de faire
+ces opérations à la main.
 
 ## 6. Health checks
 

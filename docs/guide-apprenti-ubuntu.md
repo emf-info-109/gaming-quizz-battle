@@ -1,206 +1,212 @@
-# 🐧 Guide apprenti – Installer Gaming Quiz Battle sur Ubuntu (sans conteneur)
+# 🐧 Guide apprenti – Installer Gaming Quiz Battle sur Ubuntu
 
-Ce guide installe l'application sur **une VM web** Ubuntu Server 24.04.
-Suivez les étapes **dans l'ordre** et vérifiez chaque ✅ avant de passer à la suite.
+Un script d'installation (`setup.sh`) fait presque tout à votre place : il vous pose quelques
+questions, installe ce qu'il faut, compile l'application et la démarre.
+Au **premier démarrage**, l'application crée elle-même les tables et les **140 questions**.
 
-> 🔁 Vous avez deux VM web (WEB-01 et WEB-02) ? Faites **tout le guide sur chacune**.
-> Une seule différence : le nom de l'instance (étape 5). L'étape 6 ne se fait qu'**une fois**.
+Votre travail :
 
-Durée estimée : 20 à 30 minutes par VM.
+1. **Prérequis 1** – préparer la base de données (sur la VM DATABASE)
+2. **Prérequis 2** – installer Nginx (sur chaque VM web)
+3. **Lancer le setup** (sur chaque VM web)
+
+```text
+   VM WEB-01  ─┐
+               ├──►  VM DATABASE (MySQL)
+   VM WEB-02  ─┘
+```
+
+> 💡 Les commandes sont à **copier-coller** dans le terminal. Dans le terminal SSH, le collage se
+> fait souvent avec **clic droit** ou **Ctrl+Shift+V**.
 
 ---
 
-## Avant de commencer
+## Avant de commencer : notez vos informations
 
-Notez ces informations, vous en aurez besoin :
-
-| Information | Exemple | Votre valeur |
+| Information | Comment la trouver | Votre valeur |
 |---|---|---|
-| Nom de cette VM | `WEB-01` | |
-| IP privée de la VM base de données | `10.0.2.4` | |
-| Mot de passe MySQL de l'utilisateur `quiz_app` | `3f9c…` | |
-| Adresse du dépôt Git | `https://…/gaming-quiz-battle.git` | |
-
-La base de données doit déjà exister sur la VM DATABASE (MySQL 8). Si ce n'est pas le cas, voir
-l'[annexe](#annexe--préparer-la-base-mysql).
-
-Connectez-vous à la VM web en SSH, par exemple : `ssh azureuser@<IP_DE_LA_VM>`.
+| IP privée de la VM DATABASE | Portail Azure, ou `hostname -I` sur la VM | |
+| IP privée de WEB-01 et WEB-02 | Portail Azure, ou `hostname -I` sur chaque VM | |
+| Mot de passe MySQL (à inventer) | Lettres et chiffres, au moins 12 caractères | |
 
 ---
 
-## Étape 1 – Installer Node.js
+## Prérequis 1 – La base de données (VM DATABASE)
+
+Connectez-vous en SSH à la **VM DATABASE**.
+
+### 1.1 Installer MySQL
 
 ```bash
 sudo apt update
-sudo apt install -y ca-certificates curl git rsync
-curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource_setup.sh
-sudo bash /tmp/nodesource_setup.sh
-sudo apt install -y nodejs
+sudo apt install -y mysql-server
 ```
 
-✅ **Vérification** : `node -v` affiche `v24.…`
+✅ `systemctl is-active mysql` affiche `active`
+
+### 1.2 Autoriser les connexions depuis le réseau
+
+Par défaut, MySQL n'accepte que les connexions venant de la VM elle-même. On lui demande
+d'écouter sur le réseau :
+
+```bash
+sudo sed -i 's/^bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+sudo systemctl restart mysql
+```
+
+✅ `sudo ss -ltn | grep 3306` affiche `0.0.0.0:3306`
+
+### 1.3 Créer la base et l'utilisateur
+
+Ouvrez la console MySQL :
+
+```bash
+sudo mysql
+```
+
+Le terminal affiche maintenant `mysql>`. Copiez ces 3 lignes **après avoir remplacé** :
+- `10.0.1.%` par le réseau de vos VM web : les 3 premiers nombres de leur IP, suivis de `.%`
+  (ex. : WEB-01 = `10.0.1.4` → `10.0.1.%`) ;
+- `MotDePasse123` par votre mot de passe (lettres et chiffres uniquement, c'est plus simple).
+
+```sql
+CREATE DATABASE gaming_quiz CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'quiz_app'@'10.0.1.%' IDENTIFIED BY 'MotDePasse123';
+GRANT ALL PRIVILEGES ON gaming_quiz.* TO 'quiz_app'@'10.0.1.%';
+```
+
+Chaque ligne doit répondre `Query OK`. Quittez la console avec :
+
+```sql
+exit
+```
+
+> ℹ️ Inutile de créer les tables : l'application s'en charge au premier démarrage.
+
+> 🔒 Le port 3306 ne doit être accessible **que depuis vos VM web**. Configurer cette règle
+> (NSG Azure / pare-feu) fait partie de votre travail de laboratoire.
 
 ---
 
-## Étape 2 – Installer Nginx
+## Prérequis 2 – Nginx (sur CHAQUE VM web)
+
+Connectez-vous en SSH à la VM web (WEB-01, puis plus tard WEB-02) :
 
 ```bash
-sudo apt install -y nginx
+sudo apt update
+sudo apt install -y nginx git
 ```
 
-✅ **Vérification** : `systemctl is-active nginx` affiche `active`
+✅ `systemctl is-active nginx` affiche `active`.
+Dans un navigateur, `http://<IP-de-la-VM>/` affiche « Welcome to nginx! » (si le réseau le permet).
 
 ---
 
-## Étape 3 – Télécharger l'application
+## Installation (sur CHAQUE VM web)
+
+### Étape 1 – Télécharger l'application
 
 ```bash
-# Utilisateur technique qui fera tourner l'API (sans mot de passe, sans shell)
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin gamingquiz
-
-# Dossier de l'application
-sudo mkdir -p /opt/gaming-quiz-battle
-sudo chown "$USER": /opt/gaming-quiz-battle
-git clone <ADRESSE_DU_DEPOT> /opt/gaming-quiz-battle
+sudo git clone <ADRESSE_DU_DEPOT> /opt/gaming-quiz-battle
 cd /opt/gaming-quiz-battle
 ```
 
-✅ **Vérification** : `ls` affiche `backend  database  deployment  docs  frontend …`
+> L'adresse du dépôt vous est donnée par l'enseignant.
 
----
-
-## Étape 4 – Installer les dépendances et compiler
+### Étape 2 – Lancer le setup
 
 ```bash
-cd /opt/gaming-quiz-battle
-npm ci
-npm run build
+sudo ./setup.sh
 ```
 
-Puis copier le site web dans le dossier servi par Nginx :
-
-```bash
-sudo mkdir -p /var/www/gaming-quiz
-sudo rsync -a --delete frontend/dist/ /var/www/gaming-quiz/
-```
-
-✅ **Vérification** : `ls /var/www/gaming-quiz` affiche `assets  favicon.svg  index.html`
-
----
-
-## Étape 5 – Configurer l'application
-
-```bash
-sudo mkdir -p /etc/gaming-quiz
-sudo cp /opt/gaming-quiz-battle/.env.example /etc/gaming-quiz/gaming-quiz.env
-sudo nano /etc/gaming-quiz/gaming-quiz.env
-```
-
-Modifiez **ces lignes** (laissez les autres telles quelles) :
-
-```ini
-INSTANCE_NAME=WEB-01
-NODE_ENV=production
-DB_HOST=10.0.2.4
-DB_PASSWORD=le-mot-de-passe-mysql
-```
-
-- `INSTANCE_NAME` : `WEB-01` sur la première VM, `WEB-02` sur la deuxième.
-- `DB_HOST` : l'IP privée de **votre** VM DATABASE.
-
-> ⚠️ Pas d'espace autour du `=`, pas de guillemets, et pas de commentaire en fin de ligne.
-
-Enregistrez (`Ctrl+O`, `Entrée`, `Ctrl+X`), puis protégez le fichier (il contient un mot de passe) :
-
-```bash
-sudo chown root:gamingquiz /etc/gaming-quiz/gaming-quiz.env
-sudo chmod 640 /etc/gaming-quiz/gaming-quiz.env
-```
-
-✅ **Vérification** : `ls -l /etc/gaming-quiz/` affiche `-rw-r----- 1 root gamingquiz`
-
----
-
-## Étape 6 – Créer les tables et les questions (⚠️ UNE SEULE FOIS)
-
-À faire **uniquement sur WEB-01** :
-
-```bash
-cd /opt/gaming-quiz-battle/backend
-sudo -u gamingquiz node --env-file=/etc/gaming-quiz/gaming-quiz.env dist/cli/db.js setup
-```
-
-✅ **Vérification** : la commande se termine par `Terminé.` et affiche `migration appliquée` et
-`seed exécuté`.
-
-❌ Si vous voyez `ECONNREFUSED`, `ETIMEDOUT` ou `Access denied` : la VM web n'arrive pas à se
-connecter à MySQL (voir [En cas de problème](#en-cas-de-problème)).
-
----
-
-## Étape 7 – Démarrer l'API avec systemd
-
-```bash
-sudo cp /opt/gaming-quiz-battle/deployment/systemd/gaming-quiz.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now gaming-quiz
-```
-
-✅ **Vérification** :
-
-```bash
-systemctl is-active gaming-quiz          # active
-curl -s http://127.0.0.1:3000/health     # {"status":"UP","instance":"WEB-01",...}
-```
-
----
-
-## Étape 8 – Configurer Nginx
-
-```bash
-sudo cp /opt/gaming-quiz-battle/deployment/nginx/gaming-quiz.conf /etc/nginx/sites-available/gaming-quiz
-sudo ln -sf /etc/nginx/sites-available/gaming-quiz /etc/nginx/sites-enabled/gaming-quiz
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-✅ **Vérification** : `sudo nginx -t` affiche `syntax is ok` et `test is successful`
-
----
-
-## Étape 9 – Tester
-
-```bash
-curl -s http://127.0.0.1/health
-curl -s http://127.0.0.1/ready
-curl -s http://127.0.0.1/api/instance
-```
-
-✅ **Résultat attendu** :
+Répondez aux questions. Quand une valeur est proposée entre `[crochets]`, appuyez simplement sur
+**Entrée** pour l'accepter.
 
 ```text
-{"status":"UP","instance":"WEB-01",...}
-{"status":"READY",...,"checks":{"database":"UP",...}}
-{"instance":"WEB-01","hostname":"...",...}
+[2/8] Configuration
+
+  Nom affiché dans le pied de page du site (ex : WEB-01 sur la 1re VM, WEB-02 sur la 2e).
+  ? Nom de ce serveur [WEB-01] : WEB-01
+
+  Connexion à la base MySQL (créée en prérequis sur la VM base de données).
+  ? Adresse IP du serveur MySQL : 10.0.2.4
+  ? Port MySQL [3306] :
+  ? Nom de la base de données [gaming_quiz] :
+  ? Utilisateur MySQL [quiz_app] :
+  ? Mot de passe MySQL :                    ← rien ne s'affiche quand vous tapez, c'est normal
+  ✔ Le serveur 10.0.2.4:3306 répond
+
+  Récapitulatif
+    Serveur        : WEB-01
+    Base MySQL     : quiz_app@10.0.2.4:3306/gaming_quiz
+  ? Lancer l'installation ? [O/n] :
 ```
 
-Dans un navigateur (si le réseau le permet) : `http://<IP_DE_LA_VM>/`. Le pied de page affiche
-**Serveur API : WEB-01**. 🎉
+Le script continue tout seul (comptez **3 à 5 minutes**) :
+
+```text
+[3/8] Node.js                       ✔ Node.js v24 installé
+[4/8] Compilation de l'application  ok
+[5/8] Vérification de la base       Connexion à MySQL et vérification des droits… ok
+[6/8] Service systemd (API)         ok
+[7/8] Nginx (site web)              ok
+[8/8] Démarrage et vérification     ok
+
+  🎉 Installation terminée !
+
+  Site web       : http://10.0.1.4/
+  Nom du serveur : WEB-01 (affiché en bas de la page)
+```
+
+### Étape 3 – Vérifier
+
+Ouvrez le site dans un navigateur. En bas de la page, vous devez voir **Serveur API : WEB-01**.
+
+Ou, dans le terminal :
+
+```bash
+curl http://127.0.0.1/ready
+```
+
+✅ La réponse contient `"status":"READY"`.
+
+### Étape 4 – Recommencer sur WEB-02
+
+Refaites **Prérequis 2** et **Installation** sur la deuxième VM web, en répondant `WEB-02` à la
+question « Nom de ce serveur ». Utilisez la **même** base de données : les deux serveurs partagent
+les mêmes joueurs et les mêmes scores.
 
 ---
 
-## ✔️ Check-list finale
+## ✔️ Check-list
 
-- [ ] `node -v` → v24
-- [ ] `systemctl is-active gaming-quiz` → active
-- [ ] `systemctl is-active nginx` → active
-- [ ] `curl http://127.0.0.1/ready` → `READY`
-- [ ] Le pied de page du site affiche le bon nom d'instance
-- [ ] Après `sudo reboot`, tout redémarre tout seul
+- [ ] Sur WEB-01 : `curl http://127.0.0.1/ready` → `READY`
+- [ ] Sur WEB-02 : `curl http://127.0.0.1/ready` → `READY`
+- [ ] Le pied de page affiche `WEB-01` sur la première VM, `WEB-02` sur la deuxième
+- [ ] Après `sudo reboot` d'une VM web, le site refonctionne tout seul
 
-**Et ensuite ?** Configurez HAProxy pour répartir le trafic entre WEB-01 et WEB-02 (health check :
-`GET /ready`), puis suivez les scénarios de [multi-instance-testing.md](multi-instance-testing.md).
+**Et ensuite ?** Mettre HAProxy devant les deux VM web (health check : `GET /ready`), puis suivre
+les scénarios de [multi-instance-testing.md](multi-instance-testing.md).
+
+---
+
+## Le setup affiche une erreur ?
+
+Le script s'arrête avec un message en rouge `✖`. Les cas les plus fréquents :
+
+| Message | Solution |
+|---|---|
+| `Ce script doit être lancé avec sudo` | Tapez `sudo ./setup.sh` |
+| `Impossible de joindre … sur le port 3306` | Mauvaise IP, MySQL arrêté, `bind-address` pas modifié (Prérequis 1.2), ou port 3306 bloqué par le NSG / pare-feu |
+| `Accès refusé pour l'utilisateur « quiz_app »` | Mauvais mot de passe, ou le réseau `'quiz_app'@'10.0.1.%'` ne correspond pas à l'IP de la VM web |
+| `La base « gaming_quiz » n'existe pas` | Le `CREATE DATABASE` du Prérequis 1.3 n'a pas été fait (ou faute de frappe) |
+| `n'a pas le droit de créer des tables` | Le `GRANT ALL PRIVILEGES` du Prérequis 1.3 manque |
+| `L'étape « … » a échoué` | Regardez les lignes affichées sous le message ; le détail complet est dans `/var/log/gaming-quiz-setup.log` |
+
+Une fois le problème corrigé, relancez simplement `sudo ./setup.sh`.
+
+Pour corriger une information saisie (IP, mot de passe…), relancez `sudo ./setup.sh` et répondez
+**n** à « Garder cette configuration ? ».
 
 ---
 
@@ -208,49 +214,47 @@ Dans un navigateur (si le réseau le permet) : `http://<IP_DE_LA_VM>/`. Le pied 
 
 | Je veux… | Commande |
 |---|---|
-| Voir l'état de l'API | `systemctl status gaming-quiz` |
-| Voir les logs de l'API en direct | `journalctl -u gaming-quiz -f` |
-| Redémarrer l'API | `sudo systemctl restart gaming-quiz` |
-| Arrêter l'API (test de panne) | `sudo systemctl stop gaming-quiz` |
-| Voir les requêtes reçues par Nginx | `sudo tail -f /var/log/nginx/access.log` |
-| Modifier la configuration | `sudo nano /etc/gaming-quiz/gaming-quiz.env` puis `sudo systemctl restart gaming-quiz` |
-
-## Mettre à jour l'application
-
-```bash
-cd /opt/gaming-quiz-battle
-git pull
-npm ci
-npm run build
-sudo rsync -a --delete frontend/dist/ /var/www/gaming-quiz/
-sudo systemctl restart gaming-quiz
-```
-
-## En cas de problème
-
-| Problème | Que vérifier |
-|---|---|
-| `gaming-quiz` est `failed` | `journalctl -u gaming-quiz -n 30` : lisez le message (souvent une faute dans le fichier `.env`) |
-| `/ready` affiche `"database":"DOWN"` | Depuis la VM web : `nc -vz <IP_DB> 3306`. Si ça échoue : pare-feu/NSG, ou MySQL n'écoute que sur 127.0.0.1 (`bind-address`) |
-| `Access denied for user 'quiz_app'` | Mauvais mot de passe, ou utilisateur MySQL créé pour un autre réseau (voir l'annexe) |
-| `502 Bad Gateway` | L'API ne tourne pas : `systemctl status gaming-quiz` |
-| Le pied de page affiche « injoignable » | Nginx ne relaie pas `/api/` : refaites l'étape 8 |
+| Savoir si l'application tourne | `systemctl status gaming-quiz` (quitter avec `q`) |
+| Voir les logs de l'application en direct | `journalctl -u gaming-quiz -f` (quitter avec `Ctrl+C`) |
+| Redémarrer l'application | `sudo systemctl restart gaming-quiz` |
+| Arrêter l'application (test de panne) | `sudo systemctl stop gaming-quiz` |
+| La relancer | `sudo systemctl start gaming-quiz` |
+| Voir les visites reçues par Nginx | `sudo tail -f /var/log/nginx/access.log` |
+| Mettre à jour l'application | `cd /opt/gaming-quiz-battle && sudo git pull && sudo ./setup.sh` |
 
 ---
 
-## Annexe – Préparer la base MySQL
+## Mini-lexique Linux
 
-Sur la **VM DATABASE**, avec MySQL 8 installé (`sudo apt install -y mysql-server`), ouvrez la
-console `sudo mysql` et exécutez (remplacez le réseau et le mot de passe) :
+| Mot | Signification |
+|---|---|
+| `sudo` | Exécuter une commande en tant qu'administrateur (root) |
+| `cd /dossier` | Se déplacer dans un dossier |
+| `apt install` | Installer un logiciel |
+| `systemctl` | Démarrer / arrêter / voir l'état d'un **service** (programme qui tourne en arrière-plan) |
+| `journalctl` | Lire les logs (journaux) des services |
+| `curl` | Faire une requête web depuis le terminal |
+| `nano fichier` | Éditer un fichier texte (`Ctrl+O` = enregistrer, `Ctrl+X` = quitter) |
 
-```sql
-CREATE DATABASE gaming_quiz CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-CREATE USER 'quiz_app'@'10.0.1.%' IDENTIFIED BY 'le-mot-de-passe-mysql';
-GRANT ALL PRIVILEGES ON gaming_quiz.* TO 'quiz_app'@'10.0.1.%';
-```
+---
 
-`10.0.1.%` = toutes les adresses du sous-réseau de vos VM web. Pour générer un mot de passe sûr :
-`openssl rand -hex 24`.
+## Que fait le setup exactement ?
 
-Rendre MySQL joignable depuis les VM web (et **seulement** depuis elles) fait partie de votre
-travail de laboratoire.
+Pour les curieux (et pour comprendre ce que vous dépannez) :
+
+| Étape | Action |
+|---|---|
+| 1 | Vérifie que Nginx est installé ; installe `curl` et `rsync` |
+| 2 | Pose les questions, teste que le port MySQL répond |
+| 3 | Installe Node.js 24 s'il est absent |
+| 4 | `npm ci` puis `npm run build` dans `/opt/gaming-quiz-battle` |
+| 5 | Crée l'utilisateur système `gamingquiz`, teste la connexion MySQL, écrit la configuration dans `/etc/gaming-quiz/gaming-quiz.env` (lisible uniquement par root et `gamingquiz`) |
+| 6 | Installe le service `/etc/systemd/system/gaming-quiz.service` et le démarre |
+| 7 | Copie le site dans `/var/www/gaming-quiz` et installe la configuration Nginx |
+| 8 | Attend que `http://127.0.0.1/ready` réponde `200` |
+
+Au premier démarrage, l'API crée les tables et insère les 140 questions (message
+`database_initialized` dans `journalctl -u gaming-quiz`). Si les deux VM démarrent en même temps,
+un verrou MySQL garantit que ce n'est fait qu'une seule fois.
+
+L'installation manuelle, étape par étape, est décrite dans [installation.md](installation.md).

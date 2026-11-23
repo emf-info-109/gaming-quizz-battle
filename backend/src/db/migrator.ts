@@ -103,12 +103,40 @@ export async function runMigrations(conn: Connection, databaseDir = findDatabase
   });
 }
 
-export async function runSeeds(conn: Connection, databaseDir = findDatabaseDir()): Promise<string[]> {
+/**
+ * Exécute les seeds. Par défaut, un seed n'est rejoué que s'il est nouveau ou
+ * si son contenu a changé (empreinte enregistrée dans schema_seeds) : c'est ce
+ * qui permet de peupler la base au PREMIER démarrage sans tout réécrire ensuite.
+ * `force: true` les rejoue tous (commande "npm run db:seed").
+ */
+export async function runSeeds(
+  conn: Connection,
+  databaseDir = findDatabaseDir(),
+  options: { force?: boolean } = {},
+): Promise<string[]> {
   return withLock(conn, async () => {
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS schema_seeds (
+        name        VARCHAR(255) NOT NULL PRIMARY KEY,
+        checksum    CHAR(64)     NOT NULL,
+        applied_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    // Lu APRÈS avoir obtenu le verrou : si une autre instance vient de peupler
+    // la base, on le voit et on ne refait rien.
+    const [rows] = await conn.query<RowDataPacket[]>('SELECT name, checksum FROM schema_seeds');
+    const known = new Map(rows.map((r) => [String(r.name), String(r.checksum)]));
+
     const dir = path.join(databaseDir, 'seeds');
     const done: string[] = [];
     for (const file of sqlFiles(dir)) {
-      await conn.query(readFileSync(path.join(dir, file), 'utf8'));
+      const content = readFileSync(path.join(dir, file), 'utf8');
+      const sum = checksum(content);
+      if (!options.force && known.get(file) === sum) continue;
+      await conn.query(content);
+      await conn.query(
+        'INSERT INTO schema_seeds (name, checksum) VALUES (?, ?) AS new ON DUPLICATE KEY UPDATE checksum = new.checksum, applied_at = CURRENT_TIMESTAMP(3)',
+        [file, sum],
+      );
       done.push(file);
     }
     return done;

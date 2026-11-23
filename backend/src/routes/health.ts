@@ -29,6 +29,11 @@ export function healthRouter({ config, pool, readiness, startedAt }: AppDeps): R
       res.status(503).json({ status: 'SHUTTING_DOWN', instance: config.instanceName, checks: { database: 'SKIPPED' } });
       return;
     }
+    if (!readiness.databaseInitialized) {
+      // Base pas encore créée/peuplée (premier démarrage ou MySQL injoignable)
+      res.status(503).json({ status: 'INITIALIZING', instance: config.instanceName, checks: { database: 'NOT_INITIALIZED' } });
+      return;
+    }
     const t0 = Date.now();
     try {
       await pingDatabase(pool);

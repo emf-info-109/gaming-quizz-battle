@@ -72,7 +72,7 @@ const openInstances = new Set<TestInstance>();
 export function createInstance(name: string, overrides: Partial<Record<string, string>> = {}): TestInstance {
   const config = testConfig({ INSTANCE_NAME: name, ...overrides });
   const pool = createPool(config.db);
-  const readiness: Readiness = { shuttingDown: false };
+  const readiness: Readiness = { shuttingDown: false, databaseInitialized: true };
   const app = createApp({
     config,
     pool,

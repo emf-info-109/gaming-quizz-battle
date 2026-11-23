@@ -3,7 +3,8 @@
  */
 import { createApp } from './app.js';
 import { buildConfig, loadEnvFile } from './config.js';
-import { createPool, pingDatabase } from './db/pool.js';
+import { startDatabaseBootstrap } from './db/bootstrap.js';
+import { createPool } from './db/pool.js';
 import type { Readiness } from './http/deps.js';
 import { createLogger } from './logger.js';
 import { createRateLimiters } from './middleware/rateLimits.js';
@@ -12,7 +13,7 @@ loadEnvFile();
 const config = buildConfig();
 const logger = createLogger(config.instanceName, config.logLevel);
 const pool = createPool(config.db);
-const readiness: Readiness = { shuttingDown: false };
+const readiness: Readiness = { shuttingDown: false, databaseInitialized: !config.autoMigrate };
 
 const app = createApp({
   config,
@@ -34,10 +35,10 @@ const server = app.listen(config.port, config.host, () => {
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;
 
-// Le démarrage ne bloque pas si MySQL est indisponible : /health répond, /ready renvoie 503.
-pingDatabase(pool, 5_000)
-  .then(() => logger.info('database_connected'))
-  .catch((err: Error) => logger.warn('database_unreachable', { error: err.message }));
+// Premier démarrage : création des tables + 140 questions (AUTO_MIGRATE=true par défaut).
+// Le démarrage ne bloque pas si MySQL est indisponible : /health répond, /ready renvoie 503
+// et l'initialisation est retentée régulièrement.
+const bootstrap = config.autoMigrate ? startDatabaseBootstrap(config, logger, readiness) : null;
 
 /**
  * Arrêt propre (systemctl stop/restart) :
@@ -49,6 +50,7 @@ function shutdown(signal: string) {
   if (stopping) return;
   stopping = true;
   readiness.shuttingDown = true;
+  bootstrap?.stop();
   logger.info('shutdown_started', { signal });
   const drainMs = config.env === 'production' ? 2_000 : 0;
   setTimeout(() => {

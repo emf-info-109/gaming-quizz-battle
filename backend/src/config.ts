@@ -45,6 +45,10 @@ const envSchema = z.object({
   TRUST_PROXY: z.string().default('loopback,uniquelocal'),
   CORS_ORIGINS: z.string().default(''),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  AUTO_MIGRATE: z
+    .enum(['true', 'false', '1', '0', 'yes', 'no'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1' || v === 'yes'),
 
   DB_HOST: z.string().min(1).default('127.0.0.1'),
   DB_PORT: intFromEnv(3306, 1, 65535),
@@ -74,6 +78,8 @@ export interface AppConfig {
   trustProxy: string | boolean | number;
   corsOrigins: string[];
   logLevel: 'error' | 'warn' | 'info' | 'debug';
+  /** Créer les tables et insérer les questions automatiquement au démarrage */
+  autoMigrate: boolean;
   db: {
     host: string;
     port: number;
@@ -123,6 +129,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       .map((o) => o.trim())
       .filter(Boolean),
     logLevel: e.LOG_LEVEL,
+    autoMigrate: e.AUTO_MIGRATE,
     db: {
       host: e.DB_HOST,
       port: e.DB_PORT,

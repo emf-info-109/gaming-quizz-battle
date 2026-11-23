@@ -5,7 +5,10 @@ Docker**. C'est une alternative à l'[installation sans conteneur](guide-apprent
 choisissez **l'une ou l'autre** méthode sur une même VM, pas les deux.
 
 > 🔁 Vous avez deux VM web (WEB-01 et WEB-02) ? Faites **tout le guide sur chacune**.
-> Une seule différence : le nom de l'instance (étape 3). L'étape 5 ne se fait qu'**une fois**.
+> Une seule différence : le nom de l'instance (étape 3).
+
+Au **premier démarrage**, l'application crée elle-même les tables et les **140 questions** dans la
+base : il suffit que la base et l'utilisateur MySQL existent.
 
 Durée estimée : 20 minutes par VM (la première construction des images prend quelques minutes).
 Prévoir une VM avec **au moins 2 Go de RAM** pour construire les images.
@@ -47,7 +50,7 @@ Seul le port **80** est ouvert sur la VM. Le backend n'est joignable que par le 
 | Adresse du dépôt Git | `https://…/gaming-quiz-battle.git` | |
 
 La base MySQL doit exister. Deux possibilités :
-- MySQL installé normalement sur la VM DATABASE → [annexe du guide Ubuntu](guide-apprenti-ubuntu.md#annexe--préparer-la-base-mysql) ;
+- MySQL installé normalement sur la VM DATABASE → [Prérequis 1 du guide Ubuntu](guide-apprenti-ubuntu.md#prérequis-1--la-base-de-données-vm-database) ;
 - MySQL **en conteneur** sur la VM DATABASE → [annexe de ce guide](#annexe--mysql-en-conteneur-sur-la-vm-database).
 
 ---
@@ -139,29 +142,7 @@ Docker télécharge Node.js et Nginx, installe les dépendances et compile l'app
 
 ---
 
-## Étape 5 – Créer les tables et les questions (⚠️ UNE SEULE FOIS)
-
-À faire **uniquement sur WEB-01**. Cette commande lance un conteneur `backend` temporaire qui
-exécute l'outil de migration, puis le supprime (`--rm`) :
-
-```bash
-cd /opt/gaming-quiz-battle/deployment/docker
-sudo docker compose -f compose.web.yml run --rm backend node dist/cli/db.js setup
-```
-
-✅ **Vérification** : la commande se termine par `Terminé.`
-
-```text
-→ Base quiz_app@10.0.2.4:3306/gaming_quiz
-  ✔ migration appliquée : 001_initial_schema.sql
-  ✔ seed exécuté      : 001_categories.sql
-  ✔ seed exécuté      : 002_questions.sql
-Terminé.
-```
-
----
-
-## Étape 6 – Démarrer les conteneurs
+## Étape 5 – Démarrer les conteneurs
 
 ```bash
 cd /opt/gaming-quiz-battle/deployment/docker
@@ -170,6 +151,10 @@ sudo docker compose -f compose.web.yml up -d
 
 `-d` = en arrière-plan. Les conteneurs redémarrent automatiquement après un crash ou un
 redémarrage de la VM (`restart: unless-stopped`).
+
+Au premier démarrage, le backend crée les tables et insère les questions. Vous pouvez le voir dans
+les logs : `sudo docker compose -f compose.web.yml logs backend | grep database_` →
+`database_initialized` (ou `database_up_to_date` si c'était déjà fait).
 
 ✅ **Vérification** (attendre ~20 secondes) :
 
@@ -181,7 +166,7 @@ Les deux services `backend` et `frontend` sont `Up … (healthy)`.
 
 ---
 
-## Étape 7 – Tester
+## Étape 6 – Tester
 
 ```bash
 curl -s http://127.0.0.1/health
@@ -255,6 +240,7 @@ Docker ne recrée que les conteneurs dont l'image a changé.
 | Problème | Que vérifier |
 |---|---|
 | `backend` redémarre en boucle | `sudo docker compose -f compose.web.yml logs backend` : souvent « Configuration invalide » (faute dans le fichier `.env`) |
+| `/ready` affiche `"INITIALIZING"` | La base n'a pas encore pu être initialisée : `logs backend`, la ligne `database_init_failed` contient un conseil (`hint`) qui explique le problème |
 | `/ready` affiche `"database":"DOWN"` | Depuis la VM : `nc -vz <IP_DB> 3306`. Pare-feu/NSG, `bind-address` de MySQL, mot de passe, réseau autorisé pour `quiz_app` |
 | `Bind for 0.0.0.0:80 failed: port is already allocated` | Un autre service utilise le port 80, souvent un Nginx installé avec l'autre méthode : `sudo systemctl disable --now nginx` |
 | `502 Bad Gateway` | Le conteneur `backend` n'est pas démarré : `ps` puis `logs backend` |

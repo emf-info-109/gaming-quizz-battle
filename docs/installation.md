@@ -1,6 +1,7 @@
 # Installation – référence
 
-> 👉 Pour une installation guidée pas à pas, utilisez plutôt les guides apprentis :
+> 👉 Pour une installation guidée pas à pas, utilisez plutôt le script `sudo ./setup.sh` décrit
+> dans les guides apprentis :
 > [sans conteneur (Ubuntu)](guide-apprenti-ubuntu.md) ou [avec Docker](guide-apprenti-docker.md).
 > Ce document est la référence détaillée (développement local, explications, dépannage).
 
@@ -218,7 +219,18 @@ sudo chmod 640 /etc/gaming-quiz/gaming-quiz.env
 > et les commentaires uniquement sur leur **propre ligne** (`# ...`) — jamais en fin de ligne.
 > Évitez les guillemets, `#`, `$` et espaces dans les mots de passe.
 
-#### Initialiser la base — **une seule fois**, depuis une seule VM
+#### Initialiser la base (facultatif)
+
+Avec `AUTO_MIGRATE=true` (valeur par défaut), **l'API crée elle-même les tables et les questions
+à son premier démarrage** : cette étape peut être sautée. Elle reste utile pour tester la
+configuration avant de démarrer le service :
+
+```bash
+cd /opt/gaming-quiz-battle/backend
+sudo -u gamingquiz node --env-file=/etc/gaming-quiz/gaming-quiz.env dist/cli/db.js check
+```
+
+Ou pour initialiser la base manuellement, depuis une seule VM :
 
 ```bash
 cd /opt/gaming-quiz-battle/backend
