@@ -1,0 +1,32 @@
+# =============================================================================
+#  Gaming Quiz Battle – MySQL 8 en conteneur (VM DATABASE) – OPTIONNEL
+#
+#  Alternative à une installation native de MySQL sur la VM DATABASE.
+#  Les données sont stockées dans le volume Docker "mysql-data" : elles
+#  survivent à la suppression du conteneur (pensez quand même aux sauvegardes !).
+#
+#  Fichier de secrets : database.env (à créer, voir database.env.example)
+#
+#    docker compose -f compose.database.yml up -d
+# =============================================================================
+name: gaming-quiz-db
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    env_file:
+      - ${GQ_DB_ENV_FILE:-database.env}
+    ports:
+      # ⚠️ Port ouvert sur la VM : restreignez son accès (NSG / pare-feu) aux VM web.
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql-data:

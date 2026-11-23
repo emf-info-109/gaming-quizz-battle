@@ -1,0 +1,59 @@
+# =============================================================================
+#  Gaming Quiz Battle – service systemd du backend (API Express)
+#
+#  Installation :
+#    sudo cp deployment/systemd/gaming-quiz.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable --now gaming-quiz
+#
+#  Commandes utiles :
+#    systemctl status gaming-quiz
+#    journalctl -u gaming-quiz -f
+#    sudo systemctl restart gaming-quiz
+# =============================================================================
+[Unit]
+Description=Gaming Quiz Battle - API backend (Node.js / Express)
+Documentation=file:///opt/gaming-quiz-battle/docs/installation.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gamingquiz
+Group=gamingquiz
+WorkingDirectory=/opt/gaming-quiz-battle/backend
+
+# Configuration (INSTANCE_NAME, DB_*, ...) : fichier lisible uniquement par root et gamingquiz
+EnvironmentFile=/etc/gaming-quiz/gaming-quiz.env
+ExecStart=/usr/bin/node dist/server.js
+
+# Redémarrage automatique en cas de crash
+Restart=on-failure
+RestartSec=3
+# Arrêt propre : SIGTERM → /ready passe à 503, puis fin des requêtes en cours
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+# Journalisation dans journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gaming-quiz
+
+# Durcissement (le service n'a besoin d'écrire nulle part sur le disque)
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

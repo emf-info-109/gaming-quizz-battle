@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# Secrets : ne jamais versionner les fichiers d'environnement réels
+.env
+.env.*
+!.env.example
+
+# Secrets du déploiement Docker
+deployment/docker/*.env

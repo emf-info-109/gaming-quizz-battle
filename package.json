@@ -1,0 +1,25 @@
+{
+  "name": "gaming-quiz-battle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gaming Quiz Battle – application de quiz gaming pour le laboratoire Cloud (module 109)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=22.22"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "db:migrate": "npm run db:migrate --workspace backend",
+    "db:seed": "npm run db:seed --workspace backend",
+    "db:setup": "npm run db:setup --workspace backend",
+    "db:status": "npm run db:status --workspace backend",
+    "test": "npm run test --workspace backend && npm run test --workspace frontend",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
+    "start": "npm run start --workspace backend"
+  }
+}

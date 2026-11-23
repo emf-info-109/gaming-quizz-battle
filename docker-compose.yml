@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------
+#  DÉVELOPPEMENT LOCAL UNIQUEMENT
+#  Fournit un serveur MySQL 8 jetable pour développer et lancer les tests.
+#  Déploiement sur des VM : voir docs/guide-apprenti-ubuntu.md (sans conteneur)
+#  ou docs/guide-apprenti-docker.md (fichiers dans deployment/docker/).
+#
+#  docker compose up -d
+# -----------------------------------------------------------------------------
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: gaming-quiz-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootdev
+      MYSQL_DATABASE: gaming_quiz
+      MYSQL_USER: quiz_app
+      MYSQL_PASSWORD: devpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Crée aussi la base de test utilisée par "npm test"
+      - ./database/docker-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-uroot", "-prootdev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mysql-data:

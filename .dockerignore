@@ -1,0 +1,10 @@
+# Ne jamais envoyer au build Docker : dépendances locales, builds, secrets
+**/node_modules
+**/dist
+**/coverage
+.git
+.env
+.env.*
+!.env.example
+**/*.log
+.DS_Store
