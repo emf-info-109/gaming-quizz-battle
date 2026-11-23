@@ -4,8 +4,8 @@ Ce guide installe l'application sur **une VM web** Ubuntu Server 24.04 à l'aide
 Docker**. C'est une alternative à l'[installation sans conteneur](guide-apprenti-ubuntu.md) :
 choisissez **l'une ou l'autre** méthode sur une même VM, pas les deux.
 
-> 🔁 Vous avez deux VM web (WEB-01 et WEB-02) ? Faites **tout le guide sur chacune**.
-> Une seule différence : le nom de l'instance (étape 3).
+> Un seul serveur web suffit. Pour ajouter plus tard un deuxième serveur web (load balancing),
+> refaites ce guide sur une nouvelle VM en lui donnant un autre nom (étape 3), avec la même base.
 
 Au **premier démarrage**, l'application crée elle-même les tables et les **140 questions** dans la
 base : il suffit que la base et l'utilisateur MySQL existent.
@@ -113,7 +113,8 @@ DB_HOST=10.0.2.4
 DB_PASSWORD=le-mot-de-passe-mysql
 ```
 
-- `INSTANCE_NAME` : `WEB-01` sur la première VM, `WEB-02` sur la deuxième.
+- `INSTANCE_NAME` : le nom affiché en bas du site, ex. `WEB-01` (un éventuel 2e serveur web
+  recevra un autre nom, ex. `WEB-02`).
 - `DB_HOST` : l'IP privée de **votre** VM DATABASE.
 - Inutile de modifier `HOST`, `PORT` et `NODE_ENV` : ils sont imposés par `compose.web.yml`.
 
@@ -197,7 +198,7 @@ Dans un navigateur : `http://<IP_DE_LA_VM>/`. Le pied de page affiche
 - [ ] Après `sudo reboot`, les conteneurs redémarrent tout seuls
 - [ ] `sudo ss -ltnp | grep 3000` ne montre **rien** (le backend n'est pas exposé sur la VM)
 
-**Et ensuite ?** Configurez HAProxy pour répartir le trafic entre WEB-01 et WEB-02 (health check :
+**Pour aller plus loin (optionnel) :** ajouter un 2e serveur web et un load balancer (health check :
 `GET /ready` sur le port 80), puis suivez les scénarios de
 [multi-instance-testing.md](multi-instance-testing.md).
 
@@ -260,8 +261,8 @@ Docker ne recrée que les conteneurs dont l'image a changé.
 | Mise à jour | `git pull`, `npm ci`, `npm run build`, copie, restart | `git pull`, `build`, `up -d` |
 | Health check du conteneur | — | Docker vérifie `/health` toutes les 15 s |
 
-Dans les deux cas, **l'application est la même** : l'état est dans MySQL, et HAProxy voit
-simplement un serveur web sur le port 80 de chaque VM.
+Dans les deux cas, **l'application est la même** : l'état est dans MySQL, et un éventuel load
+balancer voit simplement un serveur web sur le port 80 de chaque VM.
 
 ---
 

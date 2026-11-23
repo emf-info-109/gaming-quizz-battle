@@ -1,5 +1,5 @@
 # =============================================================================
-#  Gaming Quiz Battle – déploiement Docker d'une VM WEB (WEB-01 ou WEB-02)
+#  Gaming Quiz Battle – déploiement Docker du serveur web
 #
 #  Lance 2 conteneurs :
 #    frontend : Nginx (site React + relais /api, /health, /ready) → port 80 de la VM

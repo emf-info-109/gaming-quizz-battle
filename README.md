@@ -3,21 +3,24 @@
 Application web de quiz gaming (solo et multijoueur) conçue pour le **laboratoire Cloud du module 109**.
 
 Le jeu est volontairement simple : l'objectif est de disposer d'une application **réaliste** à
-déployer, sécuriser, superviser et rendre **hautement disponible** sur une infrastructure Azure
-(ou Exoscale, ou locale).
+déployer, sécuriser et superviser sur une infrastructure Azure (ou Exoscale, ou locale).
+
+**Architecture de base** – un serveur web et une base de données :
 
 ```text
-                   INTERNET
-                      |
-                HAProxy (HTTPS)          ← à configurer par les apprentis
-                      |
-             +--------+--------+
-             v                 v
-        VM WEB-01          VM WEB-02     ← Nginx (React statique) + Node/Express (systemd)
-             |                 |
-             +--------+--------+
-                      v
-                 VM DATABASE              ← MySQL 8
+   INTERNET ──►  VM WEB                     ──►  VM DATABASE
+                 Nginx (React statique)          MySQL 8
+                 + Node/Express (systemd)
+```
+
+**Évolution possible** – l'application est *stateless* : on peut ajouter plus tard d'autres
+serveurs web identiques derrière un load balancer pour la **haute disponibilité**, sans modifier
+le code :
+
+```text
+                          ┌──► VM WEB-01 ──┐
+   INTERNET ──► HAProxy ──┤                ├──► VM DATABASE
+                          └──► VM WEB-02 ──┘
 ```
 
 ## Fonctionnalités
@@ -153,8 +156,8 @@ Toutes les routes `/api` répondent en JSON. Les routes marquées 🔒 exigent l
 
 ## Limitations connues
 
-- **Rate limiting par instance** : les compteurs sont en mémoire de chaque processus Node. Avec deux
-  instances, la limite effective est environ doublée. Acceptable ici (ce n'est pas un état
+- **Rate limiting par instance** : les compteurs sont en mémoire de chaque processus Node. Avec
+  plusieurs serveurs web, la limite effective est multipliée d'autant. Acceptable ici (ce n'est pas un état
   utilisateur) ; une limitation globale peut être ajoutée dans HAProxy.
 - **Polling** : environ 1 requête/s par joueur pendant une partie multijoueur (~30 req/s pour une
   partie pleine). Les WebSockets sont volontairement hors périmètre de cette version.

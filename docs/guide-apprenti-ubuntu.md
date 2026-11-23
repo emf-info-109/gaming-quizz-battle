@@ -3,15 +3,17 @@
 L'installation se fait en **3 étapes** :
 
 1. **Prérequis 1** – préparer la base de données MySQL (sur la VM DATABASE)
-2. **Prérequis 2** – installer Nginx (sur chaque VM web)
+2. **Prérequis 2** – installer Nginx (sur la VM web)
 3. **Installation** – une seule commande, puis un **assistant** vous pose les questions
-   (sur chaque VM web)
+   (sur la VM web)
 
 ```text
-   VM WEB-01  ─┐
-               ├──►  VM DATABASE (MySQL)
-   VM WEB-02  ─┘
+   Navigateur ──►  VM WEB (Nginx + application)  ──►  VM DATABASE (MySQL)
 ```
+
+Un seul serveur web suffit pour que l'application fonctionne. Ajouter plus tard un deuxième
+serveur web derrière un load balancer est une **possibilité**, décrite à la fin de ce guide
+([Pour aller plus loin](#pour-aller-plus-loin--plusieurs-serveurs-web)).
 
 Au **premier démarrage**, l'application crée elle-même les tables et les **140 questions** dans
 la base : vous n'avez rien à importer.
@@ -26,7 +28,7 @@ la base : vous n'avez rien à importer.
 | Information | Comment la trouver | Votre valeur |
 |---|---|---|
 | IP privée de la VM DATABASE | Portail Azure, ou `hostname -I` sur la VM | |
-| IP privée de WEB-01 et WEB-02 | Portail Azure, ou `hostname -I` sur chaque VM | |
+| IP privée de la VM web | Portail Azure, ou `hostname -I` sur la VM | |
 | Mot de passe MySQL (à inventer) | Lettres et chiffres, au moins 12 caractères | |
 
 ---
@@ -65,8 +67,9 @@ sudo mysql
 ```
 
 Le terminal affiche maintenant `mysql>`. Copiez ces 3 lignes **après avoir remplacé** :
-- `10.0.1.%` par le réseau de vos VM web : les 3 premiers nombres de leur IP, suivis de `.%`
-  (ex. : WEB-01 = `10.0.1.4` → `10.0.1.%`) ;
+- `10.0.1.%` par le réseau de votre VM web : les 3 premiers nombres de son IP, suivis de `.%`
+  (ex. : VM web = `10.0.1.4` → `10.0.1.%`). Ainsi, un futur 2e serveur web du même réseau
+  pourra aussi se connecter ;
 - `MotDePasse123` par votre mot de passe (lettres et chiffres uniquement, c'est plus simple).
 
 ```sql
@@ -83,14 +86,14 @@ exit
 
 > ℹ️ Inutile de créer les tables : l'application s'en charge au premier démarrage.
 
-> 🔒 Le port 3306 ne doit être accessible **que depuis vos VM web**. Configurer cette règle
+> 🔒 Le port 3306 ne doit être accessible **que depuis votre serveur web**. Configurer cette règle
 > (NSG Azure / pare-feu) fait partie de votre travail de laboratoire.
 
 ---
 
-## Prérequis 2 – Nginx (sur CHAQUE VM web)
+## Prérequis 2 – Nginx (sur la VM web)
 
-Connectez-vous en SSH à la VM web (WEB-01, puis plus tard WEB-02) :
+Connectez-vous en SSH à la **VM web** :
 
 ```bash
 sudo apt update
@@ -104,7 +107,7 @@ Dans un navigateur, `http://<IP-de-la-VM>/` affiche « Welcome to nginx! » (si 
 
 ---
 
-## Installation (sur CHAQUE VM web)
+## Installation (sur la VM web)
 
 ### Étape 1 – Lancer l'assistant
 
@@ -145,7 +148,7 @@ Les fenêtres se suivent ainsi :
 
 | Fenêtre | Que répondre |
 |---|---|
-| **Étape 1/5 – Nom de ce serveur** | `WEB-01` sur la première VM, `WEB-02` sur la deuxième |
+| **Étape 1/5 – Nom de ce serveur** | Accepter la valeur proposée, ou `WEB-01` |
 | **Étape 2/5 – Serveur de base de données** | L'IP privée de la VM DATABASE (ex. `10.0.2.4`) |
 | **Étape 3/5 – Port MySQL** | Laisser `3306` → **Entrée** |
 | **Étape 4/5 – Base de données** | Laisser `gaming_quiz` → **Entrée** |
@@ -187,23 +190,14 @@ curl http://127.0.0.1/ready
 
 ✅ La réponse contient `"status":"READY"`.
 
-### Étape 5 – Recommencer sur WEB-02
-
-Refaites **Prérequis 2** et **Installation** sur la deuxième VM web, en répondant `WEB-02` à
-« Nom de ce serveur ». Utilisez la **même** base de données : les deux serveurs partagent les
-mêmes joueurs et les mêmes scores.
-
 ---
 
 ## ✔️ Check-list
 
-- [ ] Sur WEB-01 : `curl http://127.0.0.1/ready` → `READY`
-- [ ] Sur WEB-02 : `curl http://127.0.0.1/ready` → `READY`
-- [ ] Le pied de page affiche `WEB-01` sur la première VM, `WEB-02` sur la deuxième
-- [ ] Après `sudo reboot` d'une VM web, le site refonctionne tout seul
-
-**Et ensuite ?** Mettre HAProxy devant les deux VM web (health check : `GET /ready`), puis suivre
-les scénarios de [multi-instance-testing.md](multi-instance-testing.md).
+- [ ] `curl http://127.0.0.1/ready` → `READY`
+- [ ] Le site s'affiche dans le navigateur, avec le nom du serveur en bas de page
+- [ ] Une partie solo fonctionne et apparaît dans le classement
+- [ ] Après `sudo reboot` de la VM web, le site refonctionne tout seul
 
 ---
 
@@ -284,7 +278,37 @@ Pour les curieux (et pour comprendre ce que vous dépannez) :
 | 95 % | Attend que `http://127.0.0.1/ready` réponde `200` |
 
 Au premier démarrage, l'application crée les tables et insère les 140 questions (message
-`database_initialized` dans `journalctl -u gaming-quiz`). Si les deux VM démarrent en même temps,
-un verrou MySQL garantit que ce n'est fait qu'une seule fois.
+`database_initialized` dans `journalctl -u gaming-quiz`). Si plusieurs serveurs web démarrent
+en même temps, un verrou MySQL garantit que ce n'est fait qu'une seule fois.
 
 L'installation manuelle, étape par étape, est décrite dans [installation.md](installation.md).
+
+---
+
+## Pour aller plus loin : plusieurs serveurs web
+
+*Optionnel – uniquement si votre laboratoire le demande.*
+
+L'application est conçue pour fonctionner aussi avec **plusieurs serveurs web** qui partagent la
+même base de données, derrière un **load balancer** (par ex. HAProxy) :
+
+```text
+                         ┌──►  VM WEB-01  ──┐
+   Navigateur ──► HAProxy                   ├──►  VM DATABASE (MySQL)
+                         └──►  VM WEB-02  ──┘
+```
+
+Pour ajouter un deuxième serveur web :
+
+1. Créez une nouvelle VM web dans le même réseau que la première.
+2. Faites **Prérequis 2** et **Installation** sur cette VM, en donnant un **autre nom** à
+   l'étape 1/5 (ex. `WEB-02`). Utilisez la **même** base de données : les deux serveurs
+   partagent les joueurs, les parties et les scores.
+3. Vérifiez que l'utilisateur MySQL est autorisé depuis l'IP de cette nouvelle VM (Prérequis 1.3)
+   et que le port 3306 lui est ouvert.
+4. Placez un load balancer devant les deux VM : port 80 de chaque VM, health check
+   `GET /ready`, pas besoin de *sticky sessions*.
+
+Le pied de page du site (`Serveur API : WEB-01` / `WEB-02`) et la page `/cloud-dashboard` montrent
+quel serveur a répondu. Les scénarios de test sont dans
+[multi-instance-testing.md](multi-instance-testing.md).

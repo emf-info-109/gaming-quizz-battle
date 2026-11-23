@@ -340,7 +340,8 @@ else
   ask INSTANCE_NAME "Nom de ce serveur" "Étape 1/5 - Nom de ce serveur
 
 Ce nom s'affiche en bas du site et permet de savoir quel serveur répond.
-Exemple : WEB-01 sur la première VM web, WEB-02 sur la deuxième." \
+Exemple : WEB-01. (Si tu ajoutes plus tard un 2e serveur web, donne-lui
+un autre nom, ex : WEB-02.)" \
     "$d_name" '^[A-Za-z0-9._-]{1,40}$' "Uniquement lettres, chiffres, point, tiret ou underscore (40 caractères max)."
 fi
 

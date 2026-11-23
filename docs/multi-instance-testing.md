@@ -1,5 +1,9 @@
 # Tester le fonctionnement multi-instances
 
+> *Optionnel* – ce document concerne l'**évolution** de l'architecture de base : plusieurs
+> serveurs web derrière un load balancer. Avec un seul serveur web, les scénarios
+> 0, 5, 6 et 7 restent utiles.
+
 Ce document propose des scénarios pour **prouver** que l'infrastructure fonctionne :
 répartition de charge, absence de perte de session, tolérance à la panne d'un serveur web.
 

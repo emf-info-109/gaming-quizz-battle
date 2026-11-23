@@ -99,13 +99,14 @@ curl -si http://127.0.0.1:3001/api/instance | grep -i x-instance   # WEB-02
 
 ## Partie B – Production sur Ubuntu Server 24.04 LTS (sans Docker)
 
-> Ce guide installe **l'application** sur une VM web. La création des VM, du réseau, des NSG, de
-> HAProxy, du HTTPS, des sauvegardes et la sécurisation de MySQL font partie de **votre travail**
-> de laboratoire et ne sont pas détaillées ici.
+> Ce guide installe **l'application** sur une VM web. La création des VM, du réseau, des NSG,
+> d'un éventuel load balancer, du HTTPS, des sauvegardes et la sécurisation de MySQL font partie
+> de **votre travail** de laboratoire et ne sont pas détaillées ici.
 
-Les étapes 1 à 9 sont à répéter **à l'identique sur chaque VM web** (WEB-01, WEB-02).
-Seules différences : la valeur de `INSTANCE_NAME`, et l'initialisation de la base qui ne se fait
-**qu'une seule fois**.
+Les étapes 1 à 9 installent l'application sur **une** VM web : c'est suffisant pour qu'elle
+fonctionne. Pour ajouter plus tard d'autres serveurs web derrière un load balancer, on répète
+les mêmes étapes sur chaque nouvelle VM, avec une valeur différente de `INSTANCE_NAME`
+(voir [Plusieurs serveurs web](#optionnel-plusieurs-serveurs-web-derrière-un-load-balancer)).
 
 ### Ce que l'application attend de la VM DATABASE
 
@@ -195,7 +196,7 @@ sudo nano /etc/gaming-quiz/gaming-quiz.env
 Valeurs à adapter au minimum :
 
 ```ini
-# WEB-02 sur la deuxième VM
+# Nom affiché en bas du site (un éventuel 2e serveur web aura un autre nom, ex : WEB-02)
 INSTANCE_NAME=WEB-01
 NODE_ENV=production
 # Seul Nginx (local) parle à Express
@@ -301,9 +302,11 @@ Si `/ready` renvoie `503` avec `"database":"DOWN"`, l'API tourne mais ne joint p
 Enfin, ouvrez `http://<IP_DE_LA_VM>/` dans un navigateur (si votre réseau l'autorise) : le pied de
 page doit afficher `Serveur API : WEB-01`.
 
-### Ce que l'application attend du load balancer (HAProxy)
+### (Optionnel) Plusieurs serveurs web derrière un load balancer
 
-À configurer par vos soins ; l'application est prête pour :
+Une seule VM web suffit. Si vous ajoutez d'autres serveurs web (même base de données, un
+`INSTANCE_NAME` différent sur chacun), placez devant eux un load balancer (ex. HAProxy, à
+configurer par vos soins). L'application est prête pour :
 
 - **Backends** : port **80** (Nginx) de chaque VM web, **round-robin**, **sans sticky session**.
 - **Health check** : `GET /ready` → doit répondre `200`. (`/health` ne vérifie pas MySQL.)
@@ -318,7 +321,7 @@ Les scénarios de test sont décrits dans [multi-instance-testing.md](multi-inst
 
 ## Partie C – Mise à jour de l'application
 
-Sur **chaque** VM web, l'une après l'autre (pour éviter toute interruption) :
+Sur la VM web (s'il y en a plusieurs : l'une après l'autre, pour éviter toute interruption) :
 
 ```bash
 cd /opt/gaming-quiz-battle

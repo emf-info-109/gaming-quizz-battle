@@ -1,13 +1,14 @@
 # Architecture de Gaming Quiz Battle
 
-Ce document explique **comment** l'application peut tourner sur plusieurs serveurs web en même
-temps, derrière un load balancer en round-robin, **sans sticky sessions** et sans perdre de
-données quand un serveur s'arrête.
+L'application fonctionne avec **un seul serveur web**. Ce document explique aussi **comment**
+elle peut, si on le souhaite, tourner sur plusieurs serveurs web en même temps, derrière un load
+balancer en round-robin, **sans sticky sessions** et sans perdre de données quand un serveur
+s'arrête.
 
 ## 1. Vue d'ensemble
 
 ```text
- Navigateur ──HTTPS──► HAProxy ──HTTP──► Nginx (VM WEB-0x) ──► fichiers statiques React (/var/www/gaming-quiz)
+ Navigateur ──► [load balancer, optionnel] ──► Nginx (VM WEB) ──► fichiers statiques React (/var/www/gaming-quiz)
                                             │
                                             └── /api/, /health, /ready ──► Express (127.0.0.1:3000, systemd)
                                                                                  │
@@ -22,7 +23,7 @@ données quand un serveur s'arrête.
 | Express (Node.js) | API REST, validation, règles du jeu, calcul des scores | **Aucun état métier** (seulement les compteurs de rate limiting) |
 | MySQL 8 | Joueurs, parties, questions, réponses, scores | **Tout l'état persistant** |
 
-Les deux VM web exécutent **exactement le même code et le même build**. Seule la variable
+S'il y a plusieurs VM web, elles exécutent **exactement le même code et le même build**. Seule la variable
 `INSTANCE_NAME` (et éventuellement `DB_HOST`) diffère.
 
 ## 2. Stateless : les quatre règles
