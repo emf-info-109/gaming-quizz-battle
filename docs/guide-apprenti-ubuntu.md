@@ -1,14 +1,11 @@
 # 🐧 Guide apprenti – Installer Gaming Quiz Battle sur Ubuntu
 
-Un script d'installation (`setup.sh`) fait presque tout à votre place : il vous pose quelques
-questions, installe ce qu'il faut, compile l'application et la démarre.
-Au **premier démarrage**, l'application crée elle-même les tables et les **140 questions**.
+L'installation se fait en **3 étapes** :
 
-Votre travail :
-
-1. **Prérequis 1** – préparer la base de données (sur la VM DATABASE)
+1. **Prérequis 1** – préparer la base de données MySQL (sur la VM DATABASE)
 2. **Prérequis 2** – installer Nginx (sur chaque VM web)
-3. **Lancer le setup** (sur chaque VM web)
+3. **Installation** – une seule commande, puis un **assistant** vous pose les questions
+   (sur chaque VM web)
 
 ```text
    VM WEB-01  ─┐
@@ -16,7 +13,10 @@ Votre travail :
    VM WEB-02  ─┘
 ```
 
-> 💡 Les commandes sont à **copier-coller** dans le terminal. Dans le terminal SSH, le collage se
+Au **premier démarrage**, l'application crée elle-même les tables et les **140 questions** dans
+la base : vous n'avez rien à importer.
+
+> 💡 Les commandes sont à **copier-coller** dans le terminal. Dans un terminal SSH, le collage se
 > fait souvent avec **clic droit** ou **Ctrl+Shift+V**.
 
 ---
@@ -94,75 +94,92 @@ Connectez-vous en SSH à la VM web (WEB-01, puis plus tard WEB-02) :
 
 ```bash
 sudo apt update
-sudo apt install -y nginx git
+sudo apt install -y nginx
 ```
 
 ✅ `systemctl is-active nginx` affiche `active`.
 Dans un navigateur, `http://<IP-de-la-VM>/` affiche « Welcome to nginx! » (si le réseau le permet).
 
+> Si vous oubliez cette étape, l'assistant vous proposera d'installer Nginx.
+
 ---
 
 ## Installation (sur CHAQUE VM web)
 
-### Étape 1 – Télécharger l'application
+### Étape 1 – Lancer l'assistant
+
+Sur la VM web, copiez-collez **cette seule commande** :
 
 ```bash
-sudo git clone <ADRESSE_DU_DEPOT> /opt/gaming-quiz-battle
-cd /opt/gaming-quiz-battle
+curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
 ```
 
-> L'adresse du dépôt vous est donnée par l'enseignant.
+Elle télécharge l'application dans `/opt/gaming-quiz-battle`, puis ouvre l'assistant.
 
-### Étape 2 – Lancer le setup
+> 🔍 Bonne pratique : `curl … | sudo bash` exécute un script venu d'Internet avec les droits
+> administrateur. On ne le fait qu'avec une source de confiance. Pour lire le script avant de
+> l'exécuter : `curl -fsSL <adresse>/install.sh -o install.sh`, puis `less install.sh`, puis
+> `sudo bash install.sh`.
 
-```bash
-sudo ./setup.sh
-```
+### Étape 2 – Répondre à l'assistant
 
-Répondez aux questions. Quand une valeur est proposée entre `[crochets]`, appuyez simplement sur
-**Entrée** pour l'accepter.
+L'assistant s'affiche dans des fenêtres. On s'y déplace **au clavier** :
+
+| Touche | Action |
+|---|---|
+| **Entrée** | Valider / bouton sélectionné |
+| **Tab** ou **← →** | Passer d'un bouton à l'autre (`Suivant` / `Annuler`, `Oui` / `Non`) |
+| **Retour arrière** | Effacer le texte proposé dans un champ |
+
+Les fenêtres se suivent ainsi :
 
 ```text
-[2/8] Configuration
-
-  Nom affiché dans le pied de page du site (ex : WEB-01 sur la 1re VM, WEB-02 sur la 2e).
-  ? Nom de ce serveur [WEB-01] : WEB-01
-
-  Connexion à la base MySQL (créée en prérequis sur la VM base de données).
-  ? Adresse IP du serveur MySQL : 10.0.2.4
-  ? Port MySQL [3306] :
-  ? Nom de la base de données [gaming_quiz] :
-  ? Utilisateur MySQL [quiz_app] :
-  ? Mot de passe MySQL :                    ← rien ne s'affiche quand vous tapez, c'est normal
-  ✔ Le serveur 10.0.2.4:3306 répond
-
-  Récapitulatif
-    Serveur        : WEB-01
-    Base MySQL     : quiz_app@10.0.2.4:3306/gaming_quiz
-  ? Lancer l'installation ? [O/n] :
+┌──────────── Gaming Quiz Battle - installation ────────────┐
+│ Bienvenue dans l'assistant d'installation…                │
+│ Avant de continuer, vérifie que tu as :                   │
+│   1. créé la base de données et l'utilisateur MySQL ;     │
+│   2. installé Nginx sur cette VM.                         │
+│                          <OK>                             │
+└───────────────────────────────────────────────────────────┘
 ```
 
-Le script continue tout seul (comptez **3 à 5 minutes**) :
+| Fenêtre | Que répondre |
+|---|---|
+| **Étape 1/5 – Nom de ce serveur** | `WEB-01` sur la première VM, `WEB-02` sur la deuxième |
+| **Étape 2/5 – Serveur de base de données** | L'IP privée de la VM DATABASE (ex. `10.0.2.4`) |
+| **Étape 3/5 – Port MySQL** | Laisser `3306` → **Entrée** |
+| **Étape 4/5 – Base de données** | Laisser `gaming_quiz` → **Entrée** |
+| **Étape 5/5 – Utilisateur MySQL** | Laisser `quiz_app` → **Entrée** |
+| **Étape 5/5 – Mot de passe MySQL** | Votre mot de passe (**rien ne s'affiche** quand vous tapez : c'est normal) |
+
+L'assistant **teste la connexion à MySQL** avant d'installer quoi que ce soit :
+
+- ✅ **« Connexion à MySQL réussie ! »** : un récapitulatif s'affiche, choisissez **Oui** pour
+  lancer l'installation ;
+- ❌ **un problème est détecté** : l'assistant explique la cause probable (voir le tableau plus bas).
+  Choisissez **Corriger** : vos réponses précédentes sont reproposées, il suffit de modifier la
+  valeur fausse.
+
+### Étape 3 – Patienter
+
+Une barre de progression s'affiche pendant **3 à 5 minutes** :
 
 ```text
-[3/8] Node.js                       ✔ Node.js v24 installé
-[4/8] Compilation de l'application  ok
-[5/8] Vérification de la base       Connexion à MySQL et vérification des droits… ok
-[6/8] Service systemd (API)         ok
-[7/8] Nginx (site web)              ok
-[8/8] Démarrage et vérification     ok
-
-  🎉 Installation terminée !
-
-  Site web       : http://10.0.1.4/
-  Nom du serveur : WEB-01 (affiché en bas de la page)
+┌──────────── Gaming Quiz Battle - installation ────────────┐
+│ Téléchargement des dépendances (npm ci)… (2 à 3 minutes)  │
+│                                                           │
+│ ██████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  20%     │
+└───────────────────────────────────────────────────────────┘
 ```
 
-### Étape 3 – Vérifier
+À la fin, la fenêtre **« Installation terminée ! »** indique l'adresse du site.
 
-Ouvrez le site dans un navigateur. En bas de la page, vous devez voir **Serveur API : WEB-01**.
+### Étape 4 – Vérifier
 
-Ou, dans le terminal :
+Ouvrez le site dans un navigateur : en bas de la page, vous devez voir
+**Serveur API : WEB-01**.
+
+Ou dans le terminal :
 
 ```bash
 curl http://127.0.0.1/ready
@@ -170,11 +187,11 @@ curl http://127.0.0.1/ready
 
 ✅ La réponse contient `"status":"READY"`.
 
-### Étape 4 – Recommencer sur WEB-02
+### Étape 5 – Recommencer sur WEB-02
 
-Refaites **Prérequis 2** et **Installation** sur la deuxième VM web, en répondant `WEB-02` à la
-question « Nom de ce serveur ». Utilisez la **même** base de données : les deux serveurs partagent
-les mêmes joueurs et les mêmes scores.
+Refaites **Prérequis 2** et **Installation** sur la deuxième VM web, en répondant `WEB-02` à
+« Nom de ce serveur ». Utilisez la **même** base de données : les deux serveurs partagent les
+mêmes joueurs et les mêmes scores.
 
 ---
 
@@ -190,23 +207,34 @@ les scénarios de [multi-instance-testing.md](multi-instance-testing.md).
 
 ---
 
-## Le setup affiche une erreur ?
-
-Le script s'arrête avec un message en rouge `✖`. Les cas les plus fréquents :
+## L'assistant affiche une erreur ?
 
 | Message | Solution |
 |---|---|
-| `Ce script doit être lancé avec sudo` | Tapez `sudo ./setup.sh` |
-| `Impossible de joindre … sur le port 3306` | Mauvaise IP, MySQL arrêté, `bind-address` pas modifié (Prérequis 1.2), ou port 3306 bloqué par le NSG / pare-feu |
+| `Impossible de joindre MySQL sur …` | Mauvaise IP, MySQL arrêté, `bind-address` pas modifié (Prérequis 1.2), ou port 3306 bloqué par le NSG / pare-feu |
 | `Accès refusé pour l'utilisateur « quiz_app »` | Mauvais mot de passe, ou le réseau `'quiz_app'@'10.0.1.%'` ne correspond pas à l'IP de la VM web |
 | `La base « gaming_quiz » n'existe pas` | Le `CREATE DATABASE` du Prérequis 1.3 n'a pas été fait (ou faute de frappe) |
-| `n'a pas le droit de créer des tables` | Le `GRANT ALL PRIVILEGES` du Prérequis 1.3 manque |
-| `L'étape « … » a échoué` | Regardez les lignes affichées sous le message ; le détail complet est dans `/var/log/gaming-quiz-setup.log` |
+| `n'a pas le droit de créer des tables` / `n'a pas accès à la base` | Le `GRANT ALL PRIVILEGES` du Prérequis 1.3 manque |
+| `Téléchargement impossible depuis …` | La VM n'a pas accès à Internet (ou à GitHub) |
+| `L'étape « … » a échoué` | Les dernières lignes du journal s'affichent ; le détail complet est dans `/var/log/gaming-quiz-setup.log` |
+| `Ce script doit être lancé avec sudo` | Il manque `sudo` dans la commande |
 
-Une fois le problème corrigé, relancez simplement `sudo ./setup.sh`.
+Une fois le problème corrigé, **relancez simplement la même commande**.
+Pour modifier une information (IP, mot de passe, nom du serveur…), relancez la commande et
+répondez **Non** à « Une configuration existe déjà… La garder ? ».
 
-Pour corriger une information saisie (IP, mot de passe…), relancez `sudo ./setup.sh` et répondez
-**n** à « Garder cette configuration ? ».
+---
+
+## Mettre à jour l'application
+
+Relancez **la même commande** que pour l'installation :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
+```
+
+Elle télécharge la nouvelle version, puis l'assistant propose de garder la configuration actuelle.
+Vos joueurs et leurs scores restent dans la base de données.
 
 ---
 
@@ -220,7 +248,8 @@ Pour corriger une information saisie (IP, mot de passe…), relancez `sudo ./set
 | Arrêter l'application (test de panne) | `sudo systemctl stop gaming-quiz` |
 | La relancer | `sudo systemctl start gaming-quiz` |
 | Voir les visites reçues par Nginx | `sudo tail -f /var/log/nginx/access.log` |
-| Mettre à jour l'application | `cd /opt/gaming-quiz-battle && sudo git pull && sudo ./setup.sh` |
+| Relancer l'assistant sans retélécharger | `sudo /opt/gaming-quiz-battle/setup.sh` |
+| Tester MySQL depuis la VM web | `mysql -h <IP_DB> -u quiz_app -p gaming_quiz` (le client est installé par l'assistant) |
 
 ---
 
@@ -229,31 +258,32 @@ Pour corriger une information saisie (IP, mot de passe…), relancez `sudo ./set
 | Mot | Signification |
 |---|---|
 | `sudo` | Exécuter une commande en tant qu'administrateur (root) |
-| `cd /dossier` | Se déplacer dans un dossier |
+| `curl` | Télécharger une page ou un fichier depuis le terminal |
+| `\|` (« pipe ») | Envoyer le résultat d'une commande à la suivante |
 | `apt install` | Installer un logiciel |
 | `systemctl` | Démarrer / arrêter / voir l'état d'un **service** (programme qui tourne en arrière-plan) |
 | `journalctl` | Lire les logs (journaux) des services |
-| `curl` | Faire une requête web depuis le terminal |
 | `nano fichier` | Éditer un fichier texte (`Ctrl+O` = enregistrer, `Ctrl+X` = quitter) |
 
 ---
 
-## Que fait le setup exactement ?
+## Que fait l'assistant exactement ?
 
 Pour les curieux (et pour comprendre ce que vous dépannez) :
 
 | Étape | Action |
 |---|---|
-| 1 | Vérifie que Nginx est installé ; installe `curl` et `rsync` |
-| 2 | Pose les questions, teste que le port MySQL répond |
-| 3 | Installe Node.js 24 s'il est absent |
-| 4 | `npm ci` puis `npm run build` dans `/opt/gaming-quiz-battle` |
-| 5 | Crée l'utilisateur système `gamingquiz`, teste la connexion MySQL, écrit la configuration dans `/etc/gaming-quiz/gaming-quiz.env` (lisible uniquement par root et `gamingquiz`) |
-| 6 | Installe le service `/etc/systemd/system/gaming-quiz.service` et le démarre |
-| 7 | Copie le site dans `/var/www/gaming-quiz` et installe la configuration Nginx |
-| 8 | Attend que `http://127.0.0.1/ready` réponde `200` |
+| `install.sh` | Installe `git` si besoin, télécharge (ou met à jour) l'application dans `/opt/gaming-quiz-battle`, lance `setup.sh` |
+| Prérequis | Vérifie Nginx (propose de l'installer), installe `curl`, `rsync` et le client `mysql` |
+| Questions | Nom du serveur et connexion MySQL, puis **test réel** : connexion, identifiants, base existante, droit de créer des tables |
+| 5 % | Installe Node.js 24 s'il est absent |
+| 20 % – 55 % | `npm ci` puis `npm run build` (compilation) |
+| 75 % | Crée l'utilisateur système `gamingquiz` et écrit la configuration dans `/etc/gaming-quiz/gaming-quiz.env` (lisible uniquement par root et `gamingquiz`) |
+| 80 % | Installe et démarre le service `/etc/systemd/system/gaming-quiz.service` |
+| 88 % | Copie le site dans `/var/www/gaming-quiz` et configure Nginx |
+| 95 % | Attend que `http://127.0.0.1/ready` réponde `200` |
 
-Au premier démarrage, l'API crée les tables et insère les 140 questions (message
+Au premier démarrage, l'application crée les tables et insère les 140 questions (message
 `database_initialized` dans `journalctl -u gaming-quiz`). Si les deux VM démarrent en même temps,
 un verrou MySQL garantit que ce n'est fait qu'une seule fois.
 

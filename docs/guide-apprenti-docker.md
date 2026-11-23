@@ -47,7 +47,6 @@ Seul le port **80** est ouvert sur la VM. Le backend n'est joignable que par le 
 | Nom de cette VM | `WEB-01` | |
 | IP privée de la VM base de données | `10.0.2.4` | |
 | Mot de passe MySQL de l'utilisateur `quiz_app` | `3f9c…` | |
-| Adresse du dépôt Git | `https://…/gaming-quiz-battle.git` | |
 
 La base MySQL doit exister. Deux possibilités :
 - MySQL installé normalement sur la VM DATABASE → [Prérequis 1 du guide Ubuntu](guide-apprenti-ubuntu.md#prérequis-1--la-base-de-données-vm-database) ;
@@ -88,7 +87,7 @@ sudo docker compose version          # affiche "Docker Compose version v2.…"
 ```bash
 sudo mkdir -p /opt/gaming-quiz-battle
 sudo chown "$USER": /opt/gaming-quiz-battle
-git clone <ADRESSE_DU_DEPOT> /opt/gaming-quiz-battle
+git clone https://github.com/emf-info-109/gaming-quizz-battle.git /opt/gaming-quiz-battle
 ```
 
 ✅ **Vérification** : `ls /opt/gaming-quiz-battle/deployment/docker` affiche les fichiers

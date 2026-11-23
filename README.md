@@ -38,20 +38,20 @@ Prérequis : **Node.js ≥ 22.22** (24 LTS recommandé), **Docker** (pour le MyS
 Deux méthodes de déploiement sont documentées : **sans conteneur** (Node + Nginx + systemd,
 méthode de référence) ou **avec Docker Compose** — voir les guides apprentis ci-dessous.
 
-## Installation sur une VM Ubuntu (script guidé)
+## Installation sur une VM Ubuntu (assistant)
 
-Prérequis : une base MySQL et un utilisateur créés, Nginx installé. Puis :
+Prérequis : une base MySQL et un utilisateur créés, Nginx installé. Puis, sur la VM web :
 
 ```bash
-sudo git clone <URL_DU_DEPOT> /opt/gaming-quiz-battle
-cd /opt/gaming-quiz-battle
-sudo ./setup.sh
+curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
 ```
 
-Le script demande le nom du serveur et les informations de connexion MySQL, vérifie la connexion,
-installe Node.js, compile, crée le service systemd et configure Nginx. Au premier démarrage,
-l'application crée les tables et insère les 140 questions (`AUTO_MIGRATE=true`).
-Relancer `sudo ./setup.sh` met l'application à jour en conservant la configuration.
+`install.sh` télécharge l'application dans `/opt/gaming-quiz-battle` et lance l'assistant
+`setup.sh` (fenêtres `whiptail`) : nom du serveur, connexion MySQL **testée avant l'installation**,
+puis installation de Node.js, compilation, service systemd et Nginx, avec barre de progression.
+Au premier démarrage, l'application crée les tables et insère les 140 questions
+(`AUTO_MIGRATE=true`). Relancer la même commande met l'application à jour en conservant la
+configuration. Mode texte : `… | sudo bash -s -- --text`.
 
 ```bash
 cp .env.example .env               # puis DB_PASSWORD=devpassword
@@ -75,7 +75,7 @@ Détails : [docs/installation.md](docs/installation.md).
 
 | Document | Pour quoi faire |
 |---|---|
-| 🐧 [docs/guide-apprenti-ubuntu.md](docs/guide-apprenti-ubuntu.md) | **Guide apprenti** : prérequis (MySQL, Nginx) puis installation avec `setup.sh` |
+| 🐧 [docs/guide-apprenti-ubuntu.md](docs/guide-apprenti-ubuntu.md) | **Guide apprenti** : prérequis (MySQL, Nginx) puis installation en une commande avec l'assistant |
 | 🐳 [docs/guide-apprenti-docker.md](docs/guide-apprenti-docker.md) | **Guide apprenti pas à pas** : installation avec Docker et Docker Compose |
 | [docs/architecture.md](docs/architecture.md) | Comment l'application reste *stateless* : identification des joueurs, horloge des parties, concurrence MySQL, sécurité |
 | [docs/installation.md](docs/installation.md) | Référence complète : développement local, déploiement Ubuntu détaillé, mises à jour, dépannage |
@@ -104,7 +104,8 @@ gaming-quiz-battle/
 │   ├── systemd/gaming-quiz.service   service de l'API (installation sans conteneur)
 │   └── docker/                       Dockerfiles + Compose (installation avec conteneurs)
 ├── docs/
-├── setup.sh                 installation guidée sur Ubuntu (questions + installation complète)
+├── install.sh               téléchargement de l'application + lancement de l'assistant
+├── setup.sh                 assistant d'installation Ubuntu (questions, test MySQL, installation)
 ├── docker-compose.yml       MySQL jetable pour le développement local
 └── .env.example
 ```

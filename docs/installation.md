@@ -1,7 +1,7 @@
 # Installation – référence
 
-> 👉 Pour une installation guidée pas à pas, utilisez plutôt le script `sudo ./setup.sh` décrit
-> dans les guides apprentis :
+> 👉 Pour une installation guidée, utilisez plutôt l'assistant (`install.sh` / `setup.sh`)
+> décrit dans les guides apprentis :
 > [sans conteneur (Ubuntu)](guide-apprenti-ubuntu.md) ou [avec Docker](guide-apprenti-docker.md).
 > Ce document est la référence détaillée (développement local, explications, dépannage).
 
@@ -23,7 +23,7 @@
 ### 1. Dépendances
 
 ```bash
-git clone <URL_DU_DEPOT> gaming-quiz-battle
+git clone https://github.com/emf-info-109/gaming-quizz-battle.git gaming-quiz-battle
 cd gaming-quiz-battle
 npm install          # installe backend/ et frontend/ (npm workspaces)
 ```
@@ -155,7 +155,7 @@ lisible par tous, modifiable par personne d'autre) :
 ```bash
 sudo mkdir -p /opt/gaming-quiz-battle
 sudo chown "$USER": /opt/gaming-quiz-battle
-git clone <URL_DU_DEPOT> /opt/gaming-quiz-battle
+git clone https://github.com/emf-info-109/gaming-quizz-battle.git /opt/gaming-quiz-battle
 cd /opt/gaming-quiz-battle
 ```
 
