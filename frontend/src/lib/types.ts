@@ -105,6 +105,8 @@ export interface MultiGameState {
   revealDurationMs: number;
   category: string;
   categoryIcon: string;
+  /** null = toutes catégories */
+  categorySlug: string | null;
   maxPlayers: number;
   hostPlayerId: string;
   isHost: boolean;

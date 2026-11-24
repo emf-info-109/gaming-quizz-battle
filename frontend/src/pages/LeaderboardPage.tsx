@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Avatar } from '../components/Avatar';
+import { CategoryLogo } from '../components/CategoryLogo';
 import { Alert, PageTitle, Spinner } from '../components/Feedback';
 import { usePlayer } from '../hooks/PlayerContext';
 import { useAsync } from '../hooks/useAsync';
@@ -14,7 +15,7 @@ export function LeaderboardPage() {
   const categories = useAsync(() => api.categories(), []);
   const board = useAsync(() => api.leaderboard(category), [category]);
 
-  const tabs = [{ slug: 'all', name: 'Global', icon: '🌍' }, ...(categories.data ?? [])];
+  const tabs = [{ slug: 'all', name: 'Global' }, ...(categories.data ?? [])];
 
   return (
     <div>
@@ -29,13 +30,13 @@ export function LeaderboardPage() {
             role="tab"
             aria-selected={category === t.slug}
             onClick={() => setCategory(t.slug)}
-            className={`shrink-0 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
               category === t.slug
                 ? 'border-neon-cyan bg-neon-cyan/10 text-white'
                 : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-white'
             }`}
           >
-            <span className="mr-1.5">{t.icon}</span>
+            <CategoryLogo slug={t.slug === 'all' ? 'global' : t.slug} name={t.name} size="sm" />
             {t.name}
           </button>
         ))}

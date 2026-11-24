@@ -31,6 +31,7 @@ interface MultiGameRow extends RowDataPacket {
   status: GameStatus;
   category_name: string | null;
   category_icon: string | null;
+  category_slug: string | null;
   question_count: number;
   question_duration_ms: number;
   reveal_duration_ms: number;
@@ -46,7 +47,7 @@ async function loadGameByCode(db: Queryable, code: string, forUpdate = false) {
             g.reveal_duration_ms, g.countdown_ms, g.max_players,
             TIMESTAMPDIFF(MICROSECOND, g.started_at, NOW(3)) DIV 1000 AS elapsed_ms,
             (g.created_at < NOW(3) - INTERVAL ${LOBBY_TTL_HOURS} HOUR) AS lobby_expired,
-            c.name AS category_name, c.icon AS category_icon
+            c.name AS category_name, c.icon AS category_icon, c.slug AS category_slug
        FROM games g
        LEFT JOIN categories c ON c.id = g.category_id
       WHERE g.code = ? AND g.mode = 'multi'
@@ -226,6 +227,7 @@ export interface MultiGameState {
   revealDurationMs: number;
   category: string;
   categoryIcon: string;
+  categorySlug: string | null;
   maxPlayers: number;
   hostPlayerId: string;
   isHost: boolean;
@@ -341,6 +343,7 @@ export async function getMultiGameState(pool: Pool, player: AuthPlayer, code: st
     revealDurationMs: game.reveal_duration_ms,
     category: game.category_name ?? 'Toutes catégories',
     categoryIcon: game.category_icon ?? '🎲',
+    categorySlug: game.category_slug ?? null,
     maxPlayers: game.max_players,
     hostPlayerId: game.host_player_id,
     isHost: game.host_player_id === player.id,

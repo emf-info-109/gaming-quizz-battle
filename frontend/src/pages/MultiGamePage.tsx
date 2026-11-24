@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { AnswerGrid } from '../components/AnswerGrid';
+import { CategoryLogo } from '../components/CategoryLogo';
 import { Avatar } from '../components/Avatar';
 import { Button, LinkButton } from '../components/Button';
 import { Alert, Spinner } from '../components/Feedback';
@@ -162,8 +163,8 @@ export function MultiGamePage() {
 
       {game.phase === 'countdown' && (
         <div className="flex flex-col items-center py-16 text-center">
-          <p className="font-display text-sm uppercase tracking-[0.3em] text-slate-400">
-            {game.categoryIcon} {game.category}
+          <p className="flex items-center gap-3 font-display text-sm uppercase tracking-[0.3em] text-slate-400">
+            <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" /> {game.category}
           </p>
           <p key={Math.ceil(left / 1000)} className="mt-6 animate-pop font-display text-8xl font-black text-gradient sm:text-9xl">
             {Math.max(1, Math.ceil(left / 1000))}
@@ -186,10 +187,11 @@ export function MultiGamePage() {
             <div key={game.questionIndex} className="card animate-pop p-5 sm:p-7">
               <div className="mb-4 flex flex-wrap gap-2 text-xs">
                 <span
-                  className="rounded-md px-2 py-1 font-semibold"
+                  className="inline-flex items-center gap-1.5 rounded-md py-0.5 pl-0.5 pr-2 font-semibold"
                   style={{ background: `${game.question.category.color}22`, color: game.question.category.color }}
                 >
-                  {game.question.category.icon} {game.question.category.name}
+                  <CategoryLogo slug={game.question.category.slug} name={game.question.category.name} size="xs" />{' '}
+                  {game.question.category.name}
                 </span>
                 <span className="rounded-md bg-white/5 px-2 py-1 text-slate-400">{difficultyLabel[game.question.difficulty]}</span>
               </div>
@@ -278,8 +280,9 @@ function Lobby({
         <p className="relative mt-3 select-all font-display text-5xl font-black tracking-[0.25em] text-gradient sm:text-7xl" data-testid="game-code">
           {game.code}
         </p>
-        <p className="relative mt-3 text-slate-400">
-          {game.categoryIcon} {game.category} · {game.questionCount} questions · {game.questionDurationMs / 1000} s par question
+        <p className="relative mt-3 flex flex-wrap items-center justify-center gap-2 text-slate-400">
+          <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" />
+          {game.category} · {game.questionCount} questions · {game.questionDurationMs / 1000} s par question
         </p>
         <button type="button" onClick={copy} className="relative mt-4 text-sm text-neon-cyan hover:underline">
           {copied ? '✓ Lien copié !' : '🔗 Copier le lien d’invitation'}

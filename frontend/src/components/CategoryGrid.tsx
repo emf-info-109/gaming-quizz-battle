@@ -1,4 +1,5 @@
 import type { Category } from '../lib/types';
+import { CategoryLogo } from './CategoryLogo';
 
 interface Props {
   categories: Category[];
@@ -33,7 +34,7 @@ export function CategoryGrid({ categories, onPick, busySlug }: Props) {
             style={{ background: c.color }}
             aria-hidden="true"
           />
-          <span className="text-3xl">{c.icon}</span>
+          <CategoryLogo slug={c.slug} name={c.name} size="lg" />
           <h3 className="mt-2 font-display text-sm font-bold uppercase tracking-wide">{c.name}</h3>
           <p className="mt-1 text-sm text-slate-400">{c.description}</p>
           <p className="mt-3 text-xs text-slate-500">{c.questionCount} questions</p>

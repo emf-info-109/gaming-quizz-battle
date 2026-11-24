@@ -17,6 +17,20 @@ export function Layout() {
             <Logo />
           </NavLink>
           <nav className="flex items-center gap-1">
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `mr-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white shadow-md shadow-neon-blue/20 transition hover:brightness-110 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-neon-blue to-neon-violet ring-1 ring-white/30'
+                    : 'bg-gradient-to-r from-neon-blue/80 to-neon-violet/80'
+                }`
+              }
+            >
+              <span aria-hidden="true">▶</span>
+              <span>Jouer</span>
+            </NavLink>
             <NavLink to="/leaderboard" className={navClass}>
               <span className="hidden sm:inline">Classement</span>
               <span className="sm:hidden" aria-label="Classement">🏆</span>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { AnswerGrid } from '../components/AnswerGrid';
+import { CategoryLogo } from '../components/CategoryLogo';
 import { Button, LinkButton } from '../components/Button';
 import { Alert, Spinner } from '../components/Feedback';
 import { TimerBar } from '../components/TimerBar';
@@ -145,8 +146,8 @@ export function SoloGamePage() {
 
       <div key={position} className="card animate-pop p-5 sm:p-8">
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-          <span className="rounded-md px-2 py-1 font-semibold" style={{ background: `${question.category.color}22`, color: question.category.color }}>
-            {question.category.icon} {question.category.name}
+          <span className="inline-flex items-center gap-1.5 rounded-md py-0.5 pl-0.5 pr-2 font-semibold" style={{ background: `${question.category.color}22`, color: question.category.color }}>
+            <CategoryLogo slug={question.category.slug} name={question.category.name} size="xs" /> {question.category.name}
           </span>
           <span className="rounded-md bg-white/5 px-2 py-1 text-slate-400">{difficultyLabel[question.difficulty]}</span>
         </div>
