@@ -2,9 +2,12 @@
 # =============================================================================
 #  Gaming Quiz Battle – téléchargement + lancement de l'assistant d'installation
 #
-#  Une seule commande sur la VM web (Ubuntu 24.04) :
+#  Une seule ligne sur la VM web (Ubuntu 24.04) :
 #
-#    curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
+#    curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh -o install.sh && sudo bash install.sh
+#
+#  ⚠️ Ne pas utiliser « curl … | sudo bash » : le clavier n'atteindrait pas l'assistant.
+#  Dans ce cas, le script télécharge l'application puis indique la commande à lancer.
 #
 #  Ce script :
 #    1. installe git si nécessaire,
@@ -18,7 +21,7 @@
 #    GQ_BRANCH    branche à installer (défaut : main)
 #    GQ_APP_DIR   dossier d'installation (défaut : /opt/gaming-quiz-battle)
 #  Les options (--yes, --text…) sont transmises à setup.sh :
-#    curl -fsSL …/install.sh | sudo bash -s -- --text
+#    sudo bash install.sh --text
 # =============================================================================
 set -Eeuo pipefail
 
@@ -28,7 +31,7 @@ APP_DIR="${GQ_APP_DIR:-/opt/gaming-quiz-battle}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Cette commande doit être lancée avec sudo :"
-  echo "  curl -fsSL <adresse>/install.sh | sudo bash"
+  echo "  sudo bash install.sh"
   exit 1
 fi
 
@@ -61,5 +64,19 @@ else
 fi
 echo "  ✔ Application prête ($(git -C "$APP_DIR" log -1 --format='%h – %s'))"
 
-# Lancement de l'assistant (le clavier est reconnecté par setup.sh si besoin)
+# Lancé via un tuyau (« curl … | sudo bash ») : l'assistant ne recevrait pas le clavier.
+# On s'arrête ici en indiquant la commande à taper (sauf en mode automatique --yes).
+interactive=1
+for arg in "$@"; do
+  case "$arg" in -y|--yes) interactive=0 ;; esac
+done
+if [[ $interactive -eq 1 && ! -t 0 ]]; then
+  echo
+  echo "Application téléchargée. Lance maintenant l'assistant d'installation :"
+  echo
+  echo "    sudo $APP_DIR/setup.sh"
+  echo
+  exit 0
+fi
+
 exec bash "$APP_DIR/setup.sh" "$@"

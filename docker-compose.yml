@@ -1,8 +1,9 @@
 # -----------------------------------------------------------------------------
 #  DÉVELOPPEMENT LOCAL UNIQUEMENT
 #  Fournit un serveur MySQL 8 jetable pour développer et lancer les tests.
-#  Déploiement sur des VM : voir docs/guide-apprenti-ubuntu.md (sans conteneur)
-#  ou docs/guide-apprenti-docker.md (fichiers dans deployment/docker/).
+#  Pour lancer TOUTE l'application en conteneurs (MySQL + API + site) :
+#    deployment/docker/compose.full.yml  (voir docs/guide-apprenti-docker.md)
+#  Déploiement sur des VM : voir docs/guide-apprenti-ubuntu.md (sans conteneur).
 #
 #  docker compose up -d
 # -----------------------------------------------------------------------------

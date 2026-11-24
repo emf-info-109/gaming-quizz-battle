@@ -114,15 +114,19 @@ Dans un navigateur, `http://<IP-de-la-VM>/` affiche « Welcome to nginx! » (si 
 Sur la VM web, copiez-collez **cette seule commande** :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh -o install.sh && sudo bash install.sh
 ```
 
-Elle télécharge l'application dans `/opt/gaming-quiz-battle`, puis ouvre l'assistant.
+Elle télécharge le script `install.sh` (`curl … -o install.sh`), puis l'exécute avec les droits
+administrateur (`sudo bash install.sh`). Le script télécharge l'application dans
+`/opt/gaming-quiz-battle` et ouvre l'assistant.
 
-> 🔍 Bonne pratique : `curl … | sudo bash` exécute un script venu d'Internet avec les droits
-> administrateur. On ne le fait qu'avec une source de confiance. Pour lire le script avant de
-> l'exécuter : `curl -fsSL <adresse>/install.sh -o install.sh`, puis `less install.sh`, puis
-> `sudo bash install.sh`.
+> ⚠️ Copiez la commande **en entier**. N'utilisez pas la variante `curl … | sudo bash` que l'on
+> voit parfois sur Internet : l'assistant ne recevrait pas les touches du clavier.
+
+> 🔍 Bonne pratique : exécuter un script venu d'Internet avec `sudo` lui donne tous les droits.
+> On ne le fait qu'avec une source de confiance. Pour le lire avant : `less install.sh`
+> (quitter avec `q`).
 
 ### Étape 2 – Répondre à l'assistant
 
@@ -133,6 +137,7 @@ L'assistant s'affiche dans des fenêtres. On s'y déplace **au clavier** :
 | **Entrée** | Valider / bouton sélectionné |
 | **Tab** ou **← →** | Passer d'un bouton à l'autre (`Suivant` / `Annuler`, `Oui` / `Non`) |
 | **Retour arrière** | Effacer le texte proposé dans un champ |
+| **Échap** | Quitter l'assistant (rien n'est installé tant que vous n'avez pas confirmé) |
 
 Les fenêtres se suivent ainsi :
 
@@ -212,6 +217,8 @@ curl http://127.0.0.1/ready
 | `Téléchargement impossible depuis …` | La VM n'a pas accès à Internet (ou à GitHub) |
 | `L'étape « … » a échoué` | Les dernières lignes du journal s'affichent ; le détail complet est dans `/var/log/gaming-quiz-setup.log` |
 | `Ce script doit être lancé avec sudo` | Il manque `sudo` dans la commande |
+| `Application téléchargée. Lance maintenant l'assistant…` | La commande a été lancée avec `\| sudo bash` : tapez la commande affichée (`sudo /opt/gaming-quiz-battle/setup.sh`) |
+| L'assistant ne réagit plus au clavier | Fermez la session SSH, reconnectez-vous, tapez `reset` si l'affichage est abîmé, puis `sudo /opt/gaming-quiz-battle/setup.sh` |
 
 Une fois le problème corrigé, **relancez simplement la même commande**.
 Pour modifier une information (IP, mot de passe, nom du serveur…), relancez la commande et
@@ -224,7 +231,7 @@ répondez **Non** à « Une configuration existe déjà… La garder ? ».
 Relancez **la même commande** que pour l'installation :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh -o install.sh && sudo bash install.sh
 ```
 
 Elle télécharge la nouvelle version, puis l'assistant propose de garder la configuration actuelle.
@@ -253,7 +260,7 @@ Vos joueurs et leurs scores restent dans la base de données.
 |---|---|
 | `sudo` | Exécuter une commande en tant qu'administrateur (root) |
 | `curl` | Télécharger une page ou un fichier depuis le terminal |
-| `\|` (« pipe ») | Envoyer le résultat d'une commande à la suivante |
+| `&&` | Lancer la commande suivante seulement si la première a réussi |
 | `apt install` | Installer un logiciel |
 | `systemctl` | Démarrer / arrêter / voir l'état d'un **service** (programme qui tourne en arrière-plan) |
 | `journalctl` | Lire les logs (journaux) des services |
@@ -267,7 +274,7 @@ Pour les curieux (et pour comprendre ce que vous dépannez) :
 
 | Étape | Action |
 |---|---|
-| `install.sh` | Installe `git` si besoin, télécharge (ou met à jour) l'application dans `/opt/gaming-quiz-battle`, lance `setup.sh` |
+| `install.sh` | Installe `git` si besoin, télécharge (ou met à jour) l'application dans `/opt/gaming-quiz-battle`, lance l'assistant `setup.sh` |
 | Prérequis | Vérifie Nginx (propose de l'installer), installe `curl`, `rsync` et le client `mysql` |
 | Questions | Nom du serveur et connexion MySQL, puis **test réel** : connexion, identifiants, base existante, droit de créer des tables |
 | 5 % | Installe Node.js 24 s'il est absent |

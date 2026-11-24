@@ -41,12 +41,22 @@ Prérequis : **Node.js ≥ 22.22** (24 LTS recommandé), **Docker** (pour le MyS
 Deux méthodes de déploiement sont documentées : **sans conteneur** (Node + Nginx + systemd,
 méthode de référence) ou **avec Docker Compose** — voir les guides apprentis ci-dessous.
 
+### Tout en conteneurs, sur une seule machine
+
+```bash
+cd deployment/docker
+cp full.env.example .env           # choisir DB_PASSWORD
+docker compose -f compose.full.yml up -d --build
+```
+
+MySQL + API + site (port 80). Les tables et les 140 questions sont créées au premier démarrage.
+
 ## Installation sur une VM Ubuntu (assistant)
 
 Prérequis : une base MySQL et un utilisateur créés, Nginx installé. Puis, sur la VM web :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/main/install.sh -o install.sh && sudo bash install.sh
 ```
 
 `install.sh` télécharge l'application dans `/opt/gaming-quiz-battle` et lance l'assistant
@@ -54,7 +64,8 @@ curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/ma
 puis installation de Node.js, compilation, service systemd et Nginx, avec barre de progression.
 Au premier démarrage, l'application crée les tables et insère les 140 questions
 (`AUTO_MIGRATE=true`). Relancer la même commande met l'application à jour en conservant la
-configuration. Mode texte : `… | sudo bash -s -- --text`.
+configuration. Mode texte : `sudo bash install.sh --text`. Ne pas utiliser `curl … | sudo bash` :
+l'assistant a besoin du clavier (dans ce cas, `install.sh` télécharge puis indique la commande à lancer).
 
 ```bash
 cp .env.example .env               # puis DB_PASSWORD=devpassword
@@ -105,7 +116,7 @@ gaming-quiz-battle/
 ├── deployment/
 │   ├── nginx/gaming-quiz.conf        Nginx (installation sans conteneur)
 │   ├── systemd/gaming-quiz.service   service de l'API (installation sans conteneur)
-│   └── docker/                       Dockerfiles + Compose (installation avec conteneurs)
+│   └── docker/                       Dockerfiles + Compose (compose.full.yml = tout-en-un)
 ├── docs/
 ├── install.sh               téléchargement de l'application + lancement de l'assistant
 ├── setup.sh                 assistant d'installation Ubuntu (questions, test MySQL, installation)

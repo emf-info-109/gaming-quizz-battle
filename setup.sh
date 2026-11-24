@@ -2,9 +2,9 @@
 # =============================================================================
 #  Gaming Quiz Battle – assistant d'installation pour Ubuntu Server 24.04
 #
-#  Utilisation (depuis le dossier du projet) :
-#     sudo ./setup.sh
-#  ou directement depuis Internet : voir install.sh
+#  Utilisation (dans un terminal, sans « | ») :
+#     sudo /opt/gaming-quiz-battle/setup.sh
+#  Première installation depuis Internet : voir install.sh
 #
 #  L'assistant (fenêtres navigables au clavier) :
 #    1. vérifie les prérequis (Nginx),
@@ -46,8 +46,14 @@ done
 
 [[ $EUID -eq 0 ]] || { echo "Ce script doit être lancé avec sudo :  sudo ./setup.sh"; exit 1; }
 
-# Lancé via "curl … | sudo bash" : on reconnecte le clavier pour pouvoir répondre.
-if [[ $ASSUME_YES -eq 0 && ! -t 0 && -r /dev/tty ]]; then exec </dev/tty; fi
+# Les questions nécessitent un vrai terminal. Lancé via un tuyau ("curl … | sudo bash"),
+# le clavier n'atteint pas l'assistant (sudo sur Ubuntu 24.04 utilise un pseudo-terminal) :
+# on s'arrête avec un message clair au lieu de rester bloqué.
+if [[ $ASSUME_YES -eq 0 && ! -t 0 ]]; then
+  echo "L'assistant doit être lancé directement dans un terminal, sans « | » :"
+  echo "  sudo $APP_DIR/setup.sh"
+  exit 1
+fi
 
 # Interface : fenêtres (whiptail) si possible, sinon texte.
 UI=text
@@ -78,9 +84,12 @@ w_size() { # hauteur adaptée au nombre de lignes du texte
   echo $(( lines + 8 < 22 ? lines + 8 : 22 ))
 }
 
-ui_msg() { # ui_msg "texte"
+ui_msg() { # ui_msg "texte"   (Échap = quitter l'assistant)
   if [[ $UI == wizard ]]; then
-    whiptail --title "$TITLE" --ok-button "OK" --msgbox "$1" "$(w_size "$1")" 76 || true
+    local rc=0
+    whiptail --title "$TITLE" --ok-button "OK" --msgbox "$1" "$(w_size "$1")" 76 || rc=$?
+    [[ $rc -eq 255 ]] && cancelled
+    return 0
   else
     echo; printf '%s\n' "$1" | sed 's/^/  /'
   fi
@@ -290,14 +299,15 @@ if [[ $ASSUME_YES -eq 0 ]]; then
   ui_msg "Bienvenue dans l'assistant d'installation de Gaming Quiz Battle !
 
 Avant de continuer, vérifie que tu as :
-  1. créé la base de données et l'utilisateur MySQL (VM base de données) ;
+  1. créé la base de données et l'utilisateur MySQL ;
   2. installé Nginx sur cette VM (sudo apt install -y nginx).
 
 L'assistant va te demander :
   - le nom de ce serveur (ex : WEB-01) ;
   - l'adresse IP, l'utilisateur et le mot de passe MySQL.
 
-Navigation : Tab / flèches pour se déplacer, Entrée pour valider."
+Navigation : Tab / flèches pour se déplacer, Entrée pour valider,
+Échap pour quitter l'assistant."
 fi
 
 [[ "${ID:-}" == "ubuntu" ]] || ui_msg "Attention : système détecté « ${PRETTY_NAME:-inconnu} ». Cet assistant est prévu pour Ubuntu 24.04."

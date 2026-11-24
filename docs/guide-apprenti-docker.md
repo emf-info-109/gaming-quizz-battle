@@ -35,7 +35,8 @@ Seul le port **80** est ouvert sur la VM. Le backend n'est joignable que par le 
 | `deployment/docker/backend.Dockerfile` | Recette de l'image de l'API |
 | `deployment/docker/frontend.Dockerfile` | Recette de l'image Nginx + site React |
 | `deployment/docker/nginx.conf` | Configuration Nginx utilisée dans le conteneur |
-| `deployment/docker/compose.web.yml` | Lance les 2 conteneurs d'une VM web |
+| `deployment/docker/compose.full.yml` | Tout-en-un : MySQL + API + site sur une seule machine |
+| `deployment/docker/compose.web.yml` | Lance les 2 conteneurs d'une VM web (base sur une autre VM) |
 | `deployment/docker/compose.database.yml` | (Optionnel) MySQL en conteneur pour la VM DATABASE |
 
 ---
@@ -51,6 +52,38 @@ Seul le port **80** est ouvert sur la VM. Le backend n'est joignable que par le 
 La base MySQL doit exister. Deux possibilités :
 - MySQL installé normalement sur la VM DATABASE → [Prérequis 1 du guide Ubuntu](guide-apprenti-ubuntu.md#prérequis-1--la-base-de-données-vm-database) ;
 - MySQL **en conteneur** sur la VM DATABASE → [annexe de ce guide](#annexe--mysql-en-conteneur-sur-la-vm-database).
+
+---
+
+## Le plus simple : tout sur une seule machine
+
+Le fichier `compose.full.yml` lance **toute l'application** (MySQL + API + site) sur une seule
+VM, sans aucun prérequis à part Docker. La base de données est créée et remplie
+automatiquement au premier démarrage.
+
+Après les étapes 1 et 2 ci-dessous (installer Docker, télécharger l'application) :
+
+```bash
+cd /opt/gaming-quiz-battle/deployment/docker
+cp full.env.example .env
+nano .env                          # choisir un mot de passe pour DB_PASSWORD
+sudo docker compose -f compose.full.yml up -d --build
+```
+
+✅ Après 1 à 3 minutes : `curl http://127.0.0.1/ready` → `READY`, et le site est sur
+`http://<IP-de-la-VM>/`.
+
+| Je veux… | Commande (depuis `deployment/docker`) |
+|---|---|
+| Voir l'état | `sudo docker compose -f compose.full.yml ps` |
+| Voir les logs de l'API | `sudo docker compose -f compose.full.yml logs -f backend` |
+| Arrêter (données conservées) | `sudo docker compose -f compose.full.yml down` |
+| Tout effacer, **données comprises** | `sudo docker compose -f compose.full.yml down -v` |
+
+Seul le port 80 est ouvert : MySQL et l'API ne sont joignables qu'à l'intérieur de Docker.
+
+La suite de ce guide décrit l'autre possibilité : la base de données sur **sa propre VM**, et
+seulement le serveur web en conteneurs (`compose.web.yml`).
 
 ---
 
