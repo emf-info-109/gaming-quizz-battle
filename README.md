@@ -50,6 +50,8 @@ docker compose -f compose.full.yml up -d --build
 ```
 
 MySQL + API + site (port 80). Les tables et les 140 questions sont créées au premier démarrage.
+Sur **Coolify**, utiliser `deployment/docker/compose.coolify.yml` (build pack « Docker Compose ») :
+aucun port publié, le proxy de Coolify route vers le site.
 
 ## Installation sur une VM Ubuntu (assistant)
 

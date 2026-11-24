@@ -36,6 +36,7 @@ Seul le port **80** est ouvert sur la VM. Le backend n'est joignable que par le 
 | `deployment/docker/frontend.Dockerfile` | Recette de l'image Nginx + site React |
 | `deployment/docker/nginx.conf` | Configuration Nginx utilisée dans le conteneur |
 | `deployment/docker/compose.full.yml` | Tout-en-un : MySQL + API + site sur une seule machine |
+| `deployment/docker/compose.coolify.yml` | Tout-en-un pour Coolify (sans port publié) |
 | `deployment/docker/compose.web.yml` | Lance les 2 conteneurs d'une VM web (base sur une autre VM) |
 | `deployment/docker/compose.database.yml` | (Optionnel) MySQL en conteneur pour la VM DATABASE |
 
@@ -81,6 +82,20 @@ sudo docker compose -f compose.full.yml up -d --build
 | Tout effacer, **données comprises** | `sudo docker compose -f compose.full.yml down -v` |
 
 Seul le port 80 est ouvert : MySQL et l'API ne sont joignables qu'à l'intérieur de Docker.
+
+### Variante : déployer avec Coolify
+
+Sur un serveur [Coolify](https://coolify.io), les ports 80/443 sont déjà utilisés par son reverse
+proxy : `compose.full.yml` échouerait avec `Bind for 0.0.0.0:80 failed: port is already
+allocated`. Utilisez **`compose.coolify.yml`**, qui ne publie aucun port :
+
+1. **New Resource** → **Public Repository** → adresse du dépôt, branche `main`.
+2. **Build Pack** : `Docker Compose`.
+3. **Docker Compose Location** : `/deployment/docker/compose.coolify.yml`.
+4. **Deploy**.
+
+Coolify génère le mot de passe MySQL et un domaine pour le service `frontend` (modifiable dans
+la configuration du service, en gardant le port `:80` à la fin si Coolify l'affiche).
 
 La suite de ce guide décrit l'autre possibilité : la base de données sur **sa propre VM**, et
 seulement le serveur web en conteneurs (`compose.web.yml`).

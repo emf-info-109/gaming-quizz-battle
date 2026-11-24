@@ -1,0 +1,69 @@
+# =============================================================================
+#  Gaming Quiz Battle – variante de compose.full.yml pour COOLIFY
+#
+#  Différences avec compose.full.yml :
+#   - aucun port publié sur la machine : le reverse proxy de Coolify (Traefik/Caddy)
+#     occupe déjà les ports 80/443 et route vers le conteneur "frontend" (port 80) ;
+#   - le mot de passe MySQL est généré automatiquement par Coolify
+#     (variable magique SERVICE_PASSWORD_MYSQL) ;
+#   - Coolify attribue un domaine au service "frontend" (SERVICE_FQDN_FRONTEND_80),
+#     modifiable dans l'interface.
+#
+#  Dans Coolify : New Resource → Public Repository → Build Pack « Docker Compose »
+#    Docker Compose Location : /deployment/docker/compose.coolify.yml
+# =============================================================================
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: gaming_quiz
+      MYSQL_USER: quiz_app
+      MYSQL_PASSWORD: ${SERVICE_PASSWORD_MYSQL}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uquiz_app -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/backend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      INSTANCE_NAME: ${INSTANCE_NAME:-WEB-01}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTO_MIGRATE: "true"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: gaming_quiz
+      DB_USER: quiz_app
+      DB_PASSWORD: ${SERVICE_PASSWORD_MYSQL}
+    stop_grace_period: 20s
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/frontend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Coolify génère un domaine pour ce service et y relie le port 80 du conteneur
+      - SERVICE_FQDN_FRONTEND_80
+    expose:
+      - "80"
+
+volumes:
+  mysql-data:
