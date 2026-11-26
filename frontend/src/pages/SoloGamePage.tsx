@@ -185,13 +185,13 @@ export function SoloGamePage() {
 function FeedbackBanner({ result }: { result: SoloAnswerResult }) {
   if (result.isCorrect)
     return (
-      <div className="mb-5 flex animate-pop items-center justify-between rounded-xl border border-neon-green/40 bg-neon-green/10 px-4 py-3">
+      <div className="mb-5 flex animate-pop items-center justify-between rounded-md border border-neon-green/40 bg-neon-green/10 px-4 py-3">
         <span className="font-display font-bold uppercase text-neon-green">✓ Bonne réponse !</span>
         <span className="font-display font-bold text-neon-green">+{result.points} pts</span>
       </div>
     );
   return (
-    <div className="mb-5 flex animate-pop items-center justify-between rounded-xl border border-neon-red/40 bg-neon-red/10 px-4 py-3">
+    <div className="mb-5 flex animate-pop items-center justify-between rounded-md border border-neon-red/40 bg-neon-red/10 px-4 py-3">
       <span className="font-display font-bold uppercase text-neon-red">{result.timedOut ? '⏱ Temps écoulé' : '✗ Raté'}</span>
       <span className="text-sm text-red-200">Bonne réponse : {ANSWER_LETTERS[result.correctIndex]}</span>
     </div>

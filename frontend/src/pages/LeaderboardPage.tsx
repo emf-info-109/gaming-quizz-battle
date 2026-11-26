@@ -31,7 +31,7 @@ export function LeaderboardPage() {
             role="tab"
             aria-selected={category === t.slug}
             onClick={() => setCategory(t.slug)}
-            className={`flex min-w-0 items-center gap-2 rounded-xl border p-1.5 pr-2.5 text-left text-xs leading-tight font-medium transition sm:pr-3 sm:text-sm ${
+            className={`flex min-w-0 items-center gap-2 rounded-md border p-1.5 pr-2.5 text-left text-xs leading-tight font-medium transition sm:pr-3 sm:text-sm ${
               category === t.slug
                 ? 'border-neon-cyan bg-neon-cyan/10 text-white'
                 : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-white'

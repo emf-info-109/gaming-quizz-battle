@@ -64,7 +64,7 @@ export function CreateGamePage() {
 
         <fieldset className="sm:mb-6">
           <legend className="mb-2 text-sm font-medium text-slate-300">Visibilité</legend>
-          <div className="inline-flex w-full rounded-xl border border-white/10 bg-ink-900 p-1 sm:w-auto" role="radiogroup">
+          <div className="inline-flex w-full rounded-md border border-white/10 bg-ink-900 p-1 sm:w-auto" role="radiogroup">
             {[
               { value: true, label: '🌍 Publique', hint: 'Visible dans la liste' },
               { value: false, label: '🔒 Privée', hint: 'Avec le code uniquement' },

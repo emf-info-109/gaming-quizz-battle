@@ -47,7 +47,7 @@ export function AnswerGrid({ answers, onSelect, selected = null, correctIndex = 
             type="button"
             disabled={disabled || revealed || !onSelect}
             onClick={() => onSelect?.(i)}
-            className={`group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-2xl border-2 px-4 py-3 text-left transition duration-200 enabled:hover:-translate-y-0.5 enabled:active:scale-[0.98] disabled:cursor-default ${state}`}
+            className={`group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-md border-2 px-4 py-3 text-left transition duration-200 enabled:hover:-translate-y-0.5 enabled:active:scale-[0.98] disabled:cursor-default ${state}`}
           >
             {distribution && totalVotes > 0 && (
               <span
@@ -57,7 +57,7 @@ export function AnswerGrid({ answers, onSelect, selected = null, correctIndex = 
               />
             )}
             <span
-              className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-display text-sm font-bold text-white ${LETTER_COLORS[i]}`}
+              className={`chamfer-sm relative flex h-9 w-9 shrink-0 items-center justify-center font-display text-lg font-bold text-white ${LETTER_COLORS[i]}`}
             >
               {ANSWER_LETTERS[i]}
             </span>

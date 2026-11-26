@@ -7,6 +7,11 @@ export const AVATARS = [
   'wizard', 'knight', 'ghost', 'fox',
   'cat', 'skull', 'unicorn', 'wolf',
   'invader', 'octopus', 'panda', 'tiger',
+  // Archétypes de comics et de manga (aucun personnage protégé)
+  'superhero', 'supervillain', 'vampire', 'zombie',
+  'oni', 'tengu', 'genie', 'onigiri',
+  // Pour rire
+  'moai', 'clown', 'duck', 'potato', 'nerd', 'chicken',
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number];

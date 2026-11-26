@@ -23,8 +23,8 @@ const LOGOS: Record<string, string> = {
 const SIZES = {
   xs: { box: 'h-5 w-5 rounded', img: 'h-3.5 w-3.5', emoji: 'text-xs' },
   sm: { box: 'h-7 w-7 rounded-md', img: 'h-5 w-5', emoji: 'text-base' },
-  md: { box: 'h-11 w-11 rounded-xl', img: 'h-7 w-7', emoji: 'text-2xl' },
-  lg: { box: 'h-16 w-16 rounded-2xl', img: 'h-10 w-10', emoji: 'text-4xl' },
+  md: { box: 'h-11 w-11 rounded-md', img: 'h-7 w-7', emoji: 'text-2xl' },
+  lg: { box: 'h-16 w-16 rounded-md', img: 'h-10 w-10', emoji: 'text-4xl' },
 };
 
 interface Props {

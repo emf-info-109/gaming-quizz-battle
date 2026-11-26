@@ -18,6 +18,12 @@ describe('validation des entrées', () => {
     },
   );
 
+  it('accepte les avatars comics, manga et humoristiques', () => {
+    for (const avatar of ['superhero', 'oni', 'onigiri', 'moai', 'potato']) {
+      expect(createPlayerSchema.safeParse({ pseudo: 'Valide', avatar }).success).toBe(true);
+    }
+  });
+
   it('refuse un avatar inconnu et les champs supplémentaires (ex : score)', () => {
     expect(createPlayerSchema.safeParse({ pseudo: 'Valide', avatar: 'mario' }).success).toBe(false);
     expect(createPlayerSchema.safeParse({ pseudo: 'Valide', avatar: 'fox', score: 99999 }).success).toBe(false);

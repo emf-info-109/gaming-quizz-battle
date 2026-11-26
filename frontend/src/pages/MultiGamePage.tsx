@@ -361,7 +361,7 @@ function Lobby({
             {game.isPublic ? '🌍 Publique' : '🔒 Privée'}
           </span>
         </p>
-        <div className="relative mx-auto mt-5 inline-flex flex-col items-center rounded-2xl border border-white/10 bg-ink-950/50 px-5 py-3">
+        <div className="relative mx-auto mt-5 inline-flex flex-col items-center rounded-md border border-white/10 bg-ink-950/50 px-5 py-3">
           <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Code</span>
           <span
             className="select-all font-display text-3xl font-black tracking-[0.2em] text-gradient min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.25em]"
@@ -387,7 +387,7 @@ function Lobby({
           </div>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {game.players.map((p) => (
-              <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-xl bg-ink-800/80 p-2">
+              <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-md bg-ink-800/80 p-2">
                 <Avatar id={p.avatar} size="sm" ring={p.id === meId} />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">{p.pseudo}</span>
@@ -481,7 +481,7 @@ function LobbyChat({
           const el = e.currentTarget;
           stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
         }}
-        className="-mx-2 h-64 space-y-2 overflow-y-auto overscroll-contain px-2 sm:h-72"
+        className="-mx-2 h-64 space-y-2 overflow-y-auto overscroll-contain px-2 pr-3 [mask-image:linear-gradient(to_bottom,transparent,black_24px)] sm:h-72"
         role="log"
         aria-live="polite"
         aria-label="Messages de la salle d’attente"
@@ -502,7 +502,7 @@ function LobbyChat({
               {!mine && <Avatar id={m.avatar ?? ''} size="xs" />}
               <div
                 className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                  mine ? 'rounded-br-md bg-neon-blue/25 text-white' : 'rounded-bl-md bg-ink-800 text-slate-100'
+                  mine ? 'rounded-br-sm bg-neon-cyan/15 text-white ring-1 ring-inset ring-neon-cyan/25' : 'rounded-bl-sm bg-ink-800 text-slate-100'
                 }`}
               >
                 {!mine && <p className="mb-0.5 text-xs font-semibold text-neon-cyan">{m.pseudo}</p>}
@@ -541,17 +541,17 @@ function RevealBanner({ game }: { game: MultiGameState }) {
   const mine = game.myAnswer;
   if (!mine)
     return (
-      <div className="mb-5 rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-display font-bold uppercase text-slate-300">
+      <div className="mb-5 rounded-md border border-white/10 bg-white/5 px-4 py-3 font-display font-bold uppercase text-slate-300">
         ⏱ Pas de réponse
       </div>
     );
   return mine.isCorrect ? (
-    <div className="mb-5 flex animate-pop items-center justify-between rounded-xl border border-neon-green/40 bg-neon-green/10 px-4 py-3">
+    <div className="mb-5 flex animate-pop items-center justify-between rounded-md border border-neon-green/40 bg-neon-green/10 px-4 py-3">
       <span className="font-display font-bold uppercase text-neon-green">✓ Bonne réponse !</span>
       <span className="font-display font-bold text-neon-green">+{mine.points} pts</span>
     </div>
   ) : (
-    <div className="mb-5 animate-pop rounded-xl border border-neon-red/40 bg-neon-red/10 px-4 py-3 font-display font-bold uppercase text-neon-red">
+    <div className="mb-5 animate-pop rounded-md border border-neon-red/40 bg-neon-red/10 px-4 py-3 font-display font-bold uppercase text-neon-red">
       ✗ Raté
     </div>
   );

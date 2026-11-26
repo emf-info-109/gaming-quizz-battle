@@ -41,6 +41,71 @@ Conséquence : on peut arrêter, redémarrer ou ajouter une instance à tout mom
 automatisé (`backend/test/integration/multiplayer.test.ts`) ferme une instance en pleine partie et
 vérifie qu'une instance neuve reprend la partie là où elle en est.
 
+### Comment le profil suit le joueur d'un serveur à l'autre
+
+**Le problème des sessions classiques.** D'habitude, le serveur garde en mémoire « la session
+n° 123 = Alice » et le navigateur reçoit un cookie contenant ce numéro. Derrière un load balancer
+en round-robin, la requête suivante peut arriver sur WEB-02, qui n'a pas cette session en
+mémoire : Alice paraît déconnectée. Les solutions habituelles sont les *sticky sessions* (le load
+balancer renvoie toujours Alice vers le même serveur) ou un stockage de sessions partagé (Redis).
+Ici, on ne fait ni l'un ni l'autre : **il n'y a pas de session côté serveur**.
+
+**Ce qui se passe réellement :**
+
+1. **Création du profil** (`POST /api/players`, `backend/src/services/playerService.ts`) : le
+   serveur tire un **jeton secret** aléatoire (32 octets → 43 caractères), enregistre le joueur
+   dans MySQL avec seulement l'**empreinte SHA-256** de ce jeton (`players.token_hash`), et
+   renvoie le jeton au navigateur, une seule fois.
+2. **Le navigateur garde le jeton** dans `localStorage` (clé `gqb.token`, voir
+   `frontend/src/lib/session.ts`), ainsi qu'une copie du pseudo et de l'avatar (`gqb.player`)
+   pour un affichage immédiat.
+3. **À chaque requête**, le navigateur envoie `Authorization: Bearer <jeton>`. Le serveur qui la
+   reçoit, quel qu'il soit, calcule le SHA-256 du jeton et cherche le joueur dans MySQL
+   (`backend/src/middleware/auth.ts`, index unique sur `players.token_hash`). Trouvé : la
+   requête est celle de ce joueur. Pas trouvé : `401`.
+4. **Au chargement de la page**, le frontend vérifie le jeton avec `GET /api/players/me`
+   (`frontend/src/hooks/PlayerContext.tsx`). Si la base a été réinitialisée (réponse `401`), le
+   profil local est oublié.
+
+```text
+Navigateur (localStorage : jeton)
+   │  Authorization: Bearer abc…
+   ▼
+ load balancer ──► WEB-01 ─┐   sha256(abc…) → SELECT … FROM players WHERE token_hash = ?
+               └─► WEB-02 ─┴──► MySQL (joueurs, parties, réponses, chat, présence)
+```
+
+WEB-01 et WEB-02 font **exactement le même calcul sur la même base**, donc ils retrouvent le même
+joueur. Le serveur ne retient rien entre deux requêtes : la « session », c'est le jeton dans le
+navigateur plus la base MySQL partagée. Tout le reste suit le même principe : parties, scores,
+chat, présence en salle d'attente et chrono (calculé avec `NOW(3)` de MySQL, pas avec l'horloge
+de chaque serveur). Un joueur peut répondre à la question 3 via WEB-01 et voir la correction
+servie par WEB-02.
+
+**Pourquoi stocker l'empreinte et pas le jeton ?** Quelqu'un qui volerait une copie de la base
+n'obtiendrait que des empreintes, inutilisables pour se faire passer pour un joueur (même principe
+que pour les mots de passe).
+
+**Limites de ce choix :**
+
+- Le profil est **lié au navigateur** : vider les données du site, ou changer de navigateur ou
+  d'appareil, fait perdre le jeton, et il n'y a ni compte ni mot de passe pour le récupérer
+  (d'où la confirmation de « Changer de joueur »).
+- Un script malveillant injecté dans la page pourrait lire `localStorage` : c'est ce qu'empêche
+  la CSP de Nginx (`script-src 'self'`, section 7).
+- Les jetons **n'expirent pas**. C'est acceptable ici : un profil ne contient qu'un pseudo et un
+  avatar.
+
+**Pour l'observer :**
+
+- Outils de développement du navigateur → *Application* → *Local Storage* : `gqb.token`.
+  Onglet *Réseau* : l'en-tête `Authorization` sur chaque requête, et `X-Instance-Name` dans la
+  réponse (quel serveur a répondu).
+- Page **Tableau de bord Cloud**, « Surveillance continue » : arrêter une instance
+  (`sudo systemctl stop gaming-quiz`) ; le joueur reste connecté, avec le même profil, sur l'autre.
+- `backend/test/integration/multiplayer.test.ts` envoie chaque requête alternativement à deux
+  instances (comme un load balancer en round-robin) et vérifie que tout fonctionne.
+
 ## 3. L'horloge d'une partie multijoueur
 
 Au démarrage, une seule valeur est écrite : `games.started_at = NOW(3)` (heure **MySQL**, à la

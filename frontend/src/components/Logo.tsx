@@ -16,7 +16,7 @@ export function LogoMark({ className = 'h-10 w-10' }: { className?: string }) {
 
 /**
  * `compact` (en-tête) : sur mobile, le nom passe sur trois lignes pour laisser de la place
- * au menu ; sur les très petits écrans (< 360 px), seul le pictogramme est affiché.
+ * au menu ; sur les petits écrans (< 375 px), seul le pictogramme est affiché.
  */
 export function Logo({ size = 'md', compact = false }: { size?: 'md' | 'lg'; compact?: boolean }) {
   const big = size === 'lg';
@@ -24,8 +24,8 @@ export function Logo({ size = 'md', compact = false }: { size?: 'md' | 'lg'; com
     <span className={`inline-flex items-center ${compact ? 'gap-2 sm:gap-3' : 'gap-3'}`}>
       <LogoMark className={big ? 'h-16 w-16 sm:h-20 sm:w-20 animate-float' : 'h-9 w-9'} />
       <span
-        className={`font-display font-black uppercase leading-none tracking-wider ${big ? 'text-3xl sm:text-5xl' : 'text-base sm:text-lg'} ${
-          compact ? 'max-[359px]:sr-only' : ''
+        className={`font-brand font-black uppercase leading-none tracking-wider ${big ? 'text-3xl sm:text-5xl' : 'text-base sm:text-lg'} ${
+          compact ? 'max-[374px]:sr-only' : ''
         }`}
       >
         <span className={`text-gradient ${compact ? 'max-sm:block max-sm:w-min' : ''}`}>Gaming Quiz</span>

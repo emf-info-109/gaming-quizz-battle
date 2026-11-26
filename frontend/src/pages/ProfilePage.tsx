@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Alert, PageTitle, StatTile } from '../components/Feedback';
 import { usePlayer } from '../hooks/PlayerContext';
 import { api, errorMessage } from '../lib/api';
-import { AVATAR_IDS, avatarOf } from '../lib/avatars';
+import { AVATAR_GROUPS, AVATAR_IDS, avatarOf } from '../lib/avatars';
 import { formatNumber, formatPercent } from '../lib/format';
 import type { PlayerStats } from '../lib/types';
 
@@ -87,25 +87,30 @@ export function ProfilePage() {
           </div>
         </div>
 
-        <fieldset>
+        <fieldset className="space-y-4">
           <legend className="mb-3 text-sm font-medium text-slate-300">Avatar</legend>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-            {AVATAR_IDS.map((id) => (
+          {AVATAR_GROUPS.map((group) => (
+            <div key={group.title}>
+              <p className="label-caps mb-2">{group.title}</p>
+              <div className="grid grid-cols-4 gap-2 min-[400px]:grid-cols-5 sm:grid-cols-6 md:grid-cols-8">
+            {group.ids.map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setAvatar(id)}
-                className={`flex flex-col items-center gap-1 rounded-xl border p-2 transition ${
+                className={`flex flex-col items-center gap-1 rounded-md border p-2 transition ${
                   avatar === id ? 'border-neon-cyan bg-neon-cyan/10' : 'border-transparent hover:bg-white/5'
                 }`}
                 aria-pressed={avatar === id}
                 title={avatarOf(id).label}
               >
                 <Avatar id={id} size="md" />
-                <span className="text-[0.65rem] text-slate-400">{avatarOf(id).label}</span>
+                <span className="w-full truncate text-center text-[0.65rem] text-slate-400">{avatarOf(id).label}</span>
               </button>
             ))}
-          </div>
+              </div>
+            </div>
+          ))}
         </fieldset>
 
         {error && <Alert>{error}</Alert>}
