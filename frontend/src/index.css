@@ -49,6 +49,9 @@
   html {
     color-scheme: dark;
     background: var(--color-ink-950);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   body {
     @apply min-h-dvh bg-ink-950 font-sans text-slate-100 antialiased;

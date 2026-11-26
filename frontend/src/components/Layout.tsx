@@ -5,23 +5,25 @@ import { InstanceBadge } from './InstanceBadge';
 import { Logo } from './Logo';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-lg px-3 py-1.5 text-sm font-medium transition ${isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`;
+  `inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm font-medium transition sm:px-3 ${
+    isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'
+  }`;
 
 export function Layout() {
   const { player } = usePlayer();
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b border-white/5 bg-ink-950/75 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <NavLink to="/" aria-label="Accueil Gaming Quiz Battle">
-            <Logo />
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3">
+          <NavLink to="/" aria-label="Accueil Gaming Quiz Battle" className="shrink-0">
+            <Logo compact />
           </NavLink>
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5 sm:gap-1">
             <NavLink
               to="/"
               end
               className={({ isActive }) =>
-                `mr-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white shadow-md shadow-neon-blue/20 transition hover:brightness-110 ${
+                `mr-0.5 inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-semibold sm:mr-1 sm:px-3 text-white shadow-md shadow-neon-blue/20 transition hover:brightness-110 ${
                   isActive
                     ? 'bg-gradient-to-r from-neon-blue to-neon-violet ring-1 ring-white/30'
                     : 'bg-gradient-to-r from-neon-blue/80 to-neon-violet/80'

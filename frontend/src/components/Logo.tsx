@@ -14,13 +14,21 @@ export function LogoMark({ className = 'h-10 w-10' }: { className?: string }) {
   );
 }
 
-export function Logo({ size = 'md' }: { size?: 'md' | 'lg' }) {
+/**
+ * `compact` (en-tête) : sur mobile, le nom passe sur trois lignes pour laisser de la place
+ * au menu ; sur les très petits écrans (< 360 px), seul le pictogramme est affiché.
+ */
+export function Logo({ size = 'md', compact = false }: { size?: 'md' | 'lg'; compact?: boolean }) {
   const big = size === 'lg';
   return (
-    <span className="inline-flex items-center gap-3">
+    <span className={`inline-flex items-center ${compact ? 'gap-2 sm:gap-3' : 'gap-3'}`}>
       <LogoMark className={big ? 'h-16 w-16 sm:h-20 sm:w-20 animate-float' : 'h-9 w-9'} />
-      <span className={`font-display font-black uppercase leading-none tracking-wider ${big ? 'text-3xl sm:text-5xl' : 'text-base sm:text-lg'}`}>
-        <span className="text-gradient">Gaming Quiz</span>
+      <span
+        className={`font-display font-black uppercase leading-none tracking-wider ${big ? 'text-3xl sm:text-5xl' : 'text-base sm:text-lg'} ${
+          compact ? 'max-[359px]:sr-only' : ''
+        }`}
+      >
+        <span className={`text-gradient ${compact ? 'max-sm:block max-sm:w-min' : ''}`}>Gaming Quiz</span>
         <span className={`block text-slate-100 ${big ? 'mt-1 text-xl tracking-[0.5em] sm:text-2xl' : 'text-[0.65rem] tracking-[0.45em]'}`}>Battle</span>
       </span>
     </span>

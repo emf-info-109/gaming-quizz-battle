@@ -132,8 +132,8 @@ export function SoloGamePage() {
   const position = question.position;
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-4 flex items-center justify-between text-sm">
-        <span className="font-display uppercase tracking-widest text-slate-400">
+      <div className="mb-4 flex items-center justify-between gap-3 text-sm">
+        <span className="font-display uppercase tracking-wider text-slate-400 sm:tracking-widest">
           Question <span className="text-white">{position + 1}</span>/{questionCount}
         </span>
         <span className="font-display font-bold tabular-nums text-neon-cyan">{formatNumber(score)} pts</span>
@@ -164,7 +164,7 @@ export function SoloGamePage() {
           <>
             <FeedbackBanner result={view.result} />
             <AnswerGrid answers={question.answers} selected={view.result.selectedIndex} correctIndex={view.result.correctIndex} />
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end [&>button]:w-full sm:[&>button]:w-auto">
               {view.result.isLastQuestion ? (
                 <Button size="lg" onClick={() => void showResults()} autoFocus>
                   Voir les résultats 🏁

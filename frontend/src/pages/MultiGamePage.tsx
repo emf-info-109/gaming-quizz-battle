@@ -174,13 +174,13 @@ export function MultiGamePage() {
       )}
 
       {(game.phase === 'question' || game.phase === 'reveal') && game.question && (
-        <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-          <div>
-            <div className="mb-4 flex items-center justify-between text-sm">
-              <span className="font-display uppercase tracking-widest text-slate-400">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="min-w-0">
+            <div className="mb-4 flex items-center justify-between gap-3 text-sm">
+              <span className="font-display uppercase tracking-wider text-slate-400 sm:tracking-widest">
                 Question <span className="text-white">{game.questionIndex + 1}</span>/{game.questionCount}
               </span>
-              <span className="text-slate-400">
+              <span className="text-right text-slate-400">
                 {game.answeredCount}/{game.players.length} ont répondu
               </span>
             </div>
@@ -277,12 +277,12 @@ function Lobby({
       <div className="card relative overflow-hidden p-6 text-center sm:p-10">
         <span className="absolute inset-0 bg-gradient-to-br from-neon-blue/15 via-transparent to-neon-violet/15" aria-hidden="true" />
         <p className="relative text-sm uppercase tracking-[0.3em] text-slate-400">Code de la partie</p>
-        <p className="relative mt-3 select-all font-display text-5xl font-black tracking-[0.25em] text-gradient sm:text-7xl" data-testid="game-code">
+        <p className="relative mt-3 select-all font-display text-4xl font-black tracking-[0.2em] text-gradient min-[400px]:text-5xl sm:text-7xl sm:tracking-[0.25em]" data-testid="game-code">
           {game.code}
         </p>
         <p className="relative mt-3 flex flex-wrap items-center justify-center gap-2 text-slate-400">
           <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" />
-          {game.category} · {game.questionCount} questions · {game.questionDurationMs / 1000} s par question
+          {game.category} · {game.questionCount} questions · {game.questionDurationMs / 1000} s par question
         </p>
         <button type="button" onClick={copy} className="relative mt-4 text-sm text-neon-cyan hover:underline">
           {copied ? '✓ Lien copié !' : '🔗 Copier le lien d’invitation'}
@@ -298,11 +298,11 @@ function Lobby({
         </div>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {game.players.map((p) => (
-            <li key={p.id} className="flex animate-pop items-center gap-2 rounded-xl bg-ink-800/80 p-2">
+            <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-xl bg-ink-800/80 p-2">
               <Avatar id={p.avatar} size="sm" ring={p.id === meId} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold">{p.pseudo}</span>
-                {p.isHost && <span className="text-xs text-neon-amber">👑 Organisateur</span>}
+                {p.isHost && <span className="block truncate text-xs text-neon-amber">👑 Organisateur</span>}
               </span>
             </li>
           ))}
@@ -368,7 +368,7 @@ function MiniLeaderboard({ players, meId, showDelta }: { players: PlayerStanding
     </li>
   );
   return (
-    <aside className="card h-fit p-4">
+    <aside className="card h-fit min-w-0 p-4">
       <h3 className="mb-3 font-display text-sm font-bold uppercase tracking-wide text-slate-300">Classement</h3>
       <ol className="space-y-1">{top.map(row)}</ol>
       {meOutside && me && <ol className="mt-2 border-t border-white/5 pt-2">{row(me)}</ol>}
@@ -399,7 +399,7 @@ function FinalResults({ game, meId }: { game: MultiGameState; meId?: string }) {
 
       <div className="mx-auto flex max-w-xl items-end justify-center gap-3 sm:gap-5">
         {podium.map(({ p, place, height, color }) => (
-          <div key={place} className="flex flex-1 flex-col items-center">
+          <div key={place} className="flex min-w-0 flex-1 flex-col items-center">
             {p ? (
               <>
                 <span className={place === 1 ? 'animate-float' : ''}>
@@ -423,9 +423,9 @@ function FinalResults({ game, meId }: { game: MultiGameState; meId?: string }) {
           <div key={p.id} className={`flex items-center gap-3 px-4 py-2.5 ${p.id === meId ? 'bg-neon-cyan/10' : ''}`}>
             <span className="w-6 text-center font-display text-sm text-slate-400">{p.rank}</span>
             <Avatar id={p.avatar} size="sm" />
-            <span className="flex-1 truncate font-medium">{p.pseudo}</span>
-            <span className="text-xs text-slate-400">{p.correctCount}/{game.questionCount}</span>
-            <span className="w-20 text-right font-display text-sm font-bold tabular-nums">{formatNumber(p.score)}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{p.pseudo}</span>
+            <span className="shrink-0 text-xs text-slate-400">{p.correctCount}/{game.questionCount}</span>
+            <span className="w-16 shrink-0 text-right font-display text-sm font-bold tabular-nums sm:w-20">{formatNumber(p.score)}</span>
           </div>
         ))}
       </div>

@@ -196,15 +196,15 @@ export function CloudDashboardPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="card p-5">
-          <div className="mb-4 flex items-center justify-between">
+        <section className="card min-w-0 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="font-display font-bold uppercase tracking-wide">Répartition observée</h2>
             <Button variant="ghost" size="sm" onClick={resetMetrics}>Réinitialiser</Button>
           </div>
           <DistributionBars counts={metrics.byInstance} total={metrics.total} />
         </section>
 
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <h2 className="mb-1 font-display font-bold uppercase tracking-wide">Générateur de requêtes</h2>
           <p className="mb-4 text-sm text-slate-400">
             Envoie des requêtes <code className="text-slate-300">GET /api/diag/ping</code> ({CONCURRENCY} en parallèle, 100 max par
@@ -280,10 +280,10 @@ export function CloudDashboardPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <h2 className="mb-4 font-display font-bold uppercase tracking-wide">Instance interrogée</h2>
           {info ? (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
               <dt className="text-slate-400">Instance</dt>
               <dd className="font-mono font-semibold">{info.instance}</dd>
               <dt className="text-slate-400">Hôte</dt>
@@ -315,16 +315,16 @@ export function CloudDashboardPage() {
           )}
         </section>
 
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <h2 className="mb-4 font-display font-bold uppercase tracking-wide">Dernières requêtes</h2>
           {recent.length === 0 ? (
             <p className="text-sm text-slate-500">Aucune requête.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] text-xs">
+              <table className="w-full text-xs sm:min-w-[420px]">
                 <thead className="text-left text-slate-500">
                   <tr>
-                    <th className="pb-2 font-medium">Heure</th>
+                    <th className="hidden pb-2 font-medium sm:table-cell">Heure</th>
                     <th className="pb-2 font-medium">Requête</th>
                     <th className="pb-2 font-medium">Statut</th>
                     <th className="pb-2 font-medium">Instance</th>
@@ -334,8 +334,8 @@ export function CloudDashboardPage() {
                 <tbody className="font-mono">
                   {recent.map((r, i) => (
                     <tr key={`${r.at}-${i}`} className="border-t border-white/5">
-                      <td className="py-1.5 text-slate-500">{new Date(r.at).toLocaleTimeString('fr-CH')}</td>
-                      <td className="max-w-40 truncate py-1.5">
+                      <td className="hidden py-1.5 text-slate-500 sm:table-cell">{new Date(r.at).toLocaleTimeString('fr-CH')}</td>
+                      <td className="max-w-32 truncate py-1.5 pr-2 sm:max-w-40">
                         {r.method} {r.path}
                       </td>
                       <td className={`py-1.5 ${r.status === 0 || r.status >= 400 ? 'text-neon-red' : 'text-neon-green'}`}>
