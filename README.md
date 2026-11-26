@@ -162,9 +162,11 @@ Toutes les routes `/api` répondent en JSON. Les routes marquées 🔒 exigent l
 | POST | `/api/solo/games/:id/next` 🔒 | Afficher la question suivante (démarre le chrono serveur) |
 | POST | `/api/solo/games/:id/answers` 🔒 | Répondre `{position, choice}` → correction |
 | GET | `/api/solo/games/:id/results` 🔒 | Récapitulatif avec bonnes réponses |
-| POST | `/api/games` 🔒 | Créer une partie multijoueur → `{code}` |
+| GET | `/api/games` 🔒 | Salles publiques en attente de joueurs (organisateur présent) |
+| POST | `/api/games` 🔒 | Créer une partie multijoueur `{category, name?, isPublic?}` → `{code, name}` |
 | POST | `/api/games/join` 🔒 | Rejoindre `{code}` |
-| GET | `/api/games/:code` 🔒 | **État de la partie (polling)** |
+| GET | `/api/games/:code?afterMessageId=` 🔒 | **État de la partie (polling)**, avec les nouveaux messages du chat en salle d'attente |
+| POST | `/api/games/:code/messages` 🔒 | Écrire dans le chat de la salle d'attente `{text}` (20 messages/min par joueur) |
 | POST | `/api/games/:code/start` 🔒 | Démarrer (organisateur) |
 | POST | `/api/games/:code/answers` 🔒 | Répondre `{position, choice}` |
 | POST | `/api/games/:code/leave` 🔒 | Quitter la salle d'attente |

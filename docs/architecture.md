@@ -106,14 +106,30 @@ players    1──n games (host_player_id)
 games      1──n game_questions n──1 questions
 games      1──n game_players  n──1 players
 game_players 1──n answers     (UNIQUE game_id, player_id, position)
+games      1──n game_messages n──0..1 players   (chat de la salle d'attente ; player NULL = annonce)
 schema_migrations              (migrations appliquées + empreinte SHA-256)
 ```
 
 Index principaux : `players.token_hash` (unique), `players.last_seen_at` (joueurs connectés),
-`games.code` (unique), `games(status, created_at)`, `answers(player_id)`, `game_players(player_id)`.
+`games.code` (unique), `games(status, created_at)`, `answers(player_id)`, `game_players(player_id)`,
+`game_messages(game_id, id)`.
 
-Le schéma est dans `database/migrations/001_initial_schema.sql`, les données initiales dans
-`database/seeds/`.
+Le schéma est dans `database/migrations/` (`001_initial_schema.sql`, puis `002_lobby_chat.sql` :
+nom et visibilité des parties, présence des joueurs, chat), les données initiales dans
+`database/seeds/`. Une VM déjà installée applique la nouvelle migration toute seule au
+redémarrage de l'API (`AUTO_MIGRATE=true`).
+
+### Salle d'attente, liste des parties et chat
+
+Le chat suit les mêmes règles que le reste du jeu : **aucun WebSocket, aucun état en mémoire**.
+Les messages sont stockés dans `game_messages` et arrivent avec le polling de l'état
+(`GET /api/games/:code?afterMessageId=N` ne renvoie que les messages plus récents que `N`) :
+peu importe que WEB-01 reçoive le message et que WEB-02 le distribue.
+
+La liste « Parties en attente » (`GET /api/games`) ne montre que les salles publiques, non
+lancées, de moins de 3 h, **dont l'organisateur a interrogé la partie dans les 90 dernières
+secondes** (`game_players.last_seen_at`, mis à jour au plus toutes les 5 s pendant le polling) :
+une salle abandonnée (onglet fermé sans « Annuler ») disparaît donc d'elle-même de la liste.
 
 **Initialisation automatique** (`AUTO_MIGRATE=true`, par défaut) : au démarrage, l'API applique
 les migrations manquantes puis les seeds nouveaux ou modifiés (empreintes SHA-256 enregistrées

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { AnswerGrid } from '../components/AnswerGrid';
 import { CategoryLogo } from '../components/CategoryLogo';
@@ -10,7 +10,7 @@ import { usePlayer } from '../hooks/PlayerContext';
 import { useCountdown } from '../hooks/useCountdown';
 import { api, ApiError, errorMessage } from '../lib/api';
 import { difficultyLabel, formatNumber } from '../lib/format';
-import type { MultiGameState, PlayerStanding } from '../lib/types';
+import type { ChatMessage, MultiGameState, PlayerStanding } from '../lib/types';
 
 /**
  * Partie multijoueur pilotée par POLLING HTTP.
@@ -32,6 +32,9 @@ export function MultiGamePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [pending, setPending] = useState<{ index: number; choice: number } | null>(null);
   const [starting, setStarting] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  /** Dernier message reçu : le polling ne redemande que les suivants. */
+  const lastMessageId = useRef<number | undefined>(undefined);
   const triedJoin = useRef(false);
   const pollNow = useRef<() => void>(() => {});
 
@@ -47,8 +50,18 @@ export function MultiGamePage() {
 
     async function poll() {
       try {
-        const state = await api.multiState(code, controller.signal);
+        const state = await api.multiState(code, controller.signal, lastMessageId.current);
         if (!alive) return;
+        if (state.messages.length > 0) {
+          const fresh = state.messages;
+          lastMessageId.current = fresh[fresh.length - 1]!.id;
+          setMessages((prev) => {
+            const known = new Set(prev.map((m) => m.id));
+            return [...prev, ...fresh.filter((m) => !known.has(m.id))].slice(-200);
+          });
+        } else if (lastMessageId.current === undefined) {
+          lastMessageId.current = 0;
+        }
         setGame(state);
         setSyncKey((k) => k + 1);
         setConnectionLost(false);
@@ -158,11 +171,20 @@ export function MultiGamePage() {
       )}
 
       {game.phase === 'lobby' && (
-        <Lobby game={game} meId={player?.id} onStart={start} onLeave={leave} starting={starting} />
+        <Lobby
+          game={game}
+          meId={player?.id}
+          onStart={start}
+          onLeave={leave}
+          starting={starting}
+          messages={messages}
+          onMessageSent={() => pollNow.current()}
+        />
       )}
 
       {game.phase === 'countdown' && (
         <div className="flex flex-col items-center py-16 text-center">
+          <p className="mb-3 max-w-full truncate px-4 text-lg font-semibold text-white">{game.name}</p>
           <p className="flex items-center gap-3 font-display text-sm uppercase tracking-[0.3em] text-slate-400">
             <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" /> {game.category}
           </p>
@@ -253,12 +275,16 @@ function Lobby({
   onStart,
   onLeave,
   starting,
+  messages,
+  onMessageSent,
 }: {
   game: MultiGameState;
   meId?: string;
   onStart: () => void;
   onLeave: () => void;
   starting: boolean;
+  messages: ChatMessage[];
+  onMessageSent: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const shareUrl = `${window.location.origin}/multi/join?code=${game.code}`;
@@ -274,39 +300,55 @@ function Lobby({
 
   return (
     <div className="space-y-6">
-      <div className="card relative overflow-hidden p-6 text-center sm:p-10">
+      <div className="card relative overflow-hidden p-5 text-center sm:p-8">
         <span className="absolute inset-0 bg-gradient-to-br from-neon-blue/15 via-transparent to-neon-violet/15" aria-hidden="true" />
-        <p className="relative text-sm uppercase tracking-[0.3em] text-slate-400">Code de la partie</p>
-        <p className="relative mt-3 select-all font-display text-4xl font-black tracking-[0.2em] text-gradient min-[400px]:text-5xl sm:text-7xl sm:tracking-[0.25em]" data-testid="game-code">
-          {game.code}
-        </p>
-        <p className="relative mt-3 flex flex-wrap items-center justify-center gap-2 text-slate-400">
+        <p className="relative font-display text-xs uppercase tracking-[0.3em] text-neon-cyan">Salle d’attente</p>
+        <h1 className="relative mt-2 break-words font-display text-2xl font-bold sm:text-3xl">{game.name}</h1>
+        <p className="relative mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-400">
           <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" />
           {game.category} · {game.questionCount} questions · {game.questionDurationMs / 1000} s par question
+          <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-slate-300">
+            {game.isPublic ? '🌍 Publique' : '🔒 Privée'}
+          </span>
         </p>
-        <button type="button" onClick={copy} className="relative mt-4 text-sm text-neon-cyan hover:underline">
-          {copied ? '✓ Lien copié !' : '🔗 Copier le lien d’invitation'}
-        </button>
-      </div>
-
-      <div className="card p-5 sm:p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display font-bold uppercase tracking-wide">Joueurs</h2>
-          <span className="rounded-full bg-white/5 px-3 py-1 text-sm tabular-nums text-slate-300">
-            {game.players.length}/{game.maxPlayers}
+        <div className="relative mx-auto mt-5 inline-flex flex-col items-center rounded-2xl border border-white/10 bg-ink-950/50 px-5 py-3">
+          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Code</span>
+          <span
+            className="select-all font-display text-3xl font-black tracking-[0.2em] text-gradient min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.25em]"
+            data-testid="game-code"
+          >
+            {game.code}
           </span>
         </div>
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {game.players.map((p) => (
-            <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-xl bg-ink-800/80 p-2">
-              <Avatar id={p.avatar} size="sm" ring={p.id === meId} />
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold">{p.pseudo}</span>
-                {p.isHost && <span className="block truncate text-xs text-neon-amber">👑 Organisateur</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <button type="button" onClick={copy} className="relative mt-3 text-sm text-neon-cyan hover:underline">
+            {copied ? '✓ Lien copié !' : '🔗 Copier le lien d’invitation'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card min-w-0 p-5 sm:p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display font-bold uppercase tracking-wide">Joueurs</h2>
+            <span className="rounded-full bg-white/5 px-3 py-1 text-sm tabular-nums text-slate-300">
+              {game.players.length}/{game.maxPlayers}
+            </span>
+          </div>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+            {game.players.map((p) => (
+              <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-xl bg-ink-800/80 p-2">
+                <Avatar id={p.avatar} size="sm" ring={p.id === meId} />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{p.pseudo}</span>
+                  {p.isHost && <span className="block truncate text-xs text-neon-amber">👑 Organisateur</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <LobbyChat code={game.code} messages={messages} meId={meId} onSent={onMessageSent} />
       </div>
 
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
@@ -325,6 +367,117 @@ function Lobby({
         )}
       </div>
     </div>
+  );
+}
+
+const CHAT_MAX = 200;
+const timeOf = (iso: string) => new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
+
+function LobbyChat({
+  code,
+  messages,
+  meId,
+  onSent,
+}: {
+  code: string;
+  messages: ChatMessage[];
+  meId?: string;
+  onSent: () => void;
+}) {
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
+
+  // Défile vers le dernier message, sauf si le joueur est remonté lire l'historique.
+  useEffect(() => {
+    const el = listRef.current;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await api.sendChat(code, value);
+      setText('');
+      stickToBottom.current = true;
+      onSent();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="card flex min-w-0 flex-col p-5 sm:p-6" aria-labelledby="chat-title">
+      <h2 id="chat-title" className="mb-3 font-display font-bold uppercase tracking-wide">
+        Chat
+      </h2>
+      <div
+        ref={listRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+        }}
+        className="-mx-2 h-64 space-y-2 overflow-y-auto overscroll-contain px-2 sm:h-72"
+        role="log"
+        aria-live="polite"
+        aria-label="Messages de la salle d’attente"
+      >
+        {messages.length === 0 && (
+          <p className="py-10 text-center text-sm text-slate-500">Aucun message. Dis bonjour aux autres joueurs 👋</p>
+        )}
+        {messages.map((m) => {
+          if (m.kind === 'system')
+            return (
+              <p key={m.id} className="text-center text-xs text-slate-500">
+                {m.text} · {timeOf(m.createdAt)}
+              </p>
+            );
+          const mine = m.playerId === meId;
+          return (
+            <div key={m.id} className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
+              {!mine && <Avatar id={m.avatar ?? ''} size="xs" />}
+              <div
+                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
+                  mine ? 'rounded-br-md bg-neon-blue/25 text-white' : 'rounded-bl-md bg-ink-800 text-slate-100'
+                }`}
+              >
+                {!mine && <p className="mb-0.5 text-xs font-semibold text-neon-cyan">{m.pseudo}</p>}
+                <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                <p className={`mt-0.5 text-[0.65rem] ${mine ? 'text-blue-200/70' : 'text-slate-500'}`}>{timeOf(m.createdAt)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <form onSubmit={send} className="mt-3 flex gap-2">
+        <label htmlFor="chat-input" className="sr-only">
+          Écrire un message
+        </label>
+        <input
+          id="chat-input"
+          className="input min-w-0 flex-1 py-2.5"
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, CHAT_MAX))}
+          maxLength={CHAT_MAX}
+          placeholder="Écris un message…"
+          autoComplete="off"
+          enterKeyHint="send"
+        />
+        <Button type="submit" variant="secondary" loading={sending} disabled={!text.trim()} aria-label="Envoyer le message">
+          <span aria-hidden="true">➤</span>
+          <span className="hidden sm:inline">Envoyer</span>
+        </Button>
+      </form>
+      {error && <p className="mt-2 text-xs text-neon-red">{error}</p>}
+    </section>
   );
 }
 
@@ -388,6 +541,7 @@ function FinalResults({ game, meId }: { game: MultiGameState; meId?: string }) {
     <div className="space-y-8">
       <div className="text-center">
         <p className="font-display text-sm uppercase tracking-[0.3em] text-neon-cyan">Partie terminée</p>
+        <p className="mt-1 truncate text-slate-400">{game.name}</p>
         <h1 className="mt-2 font-display text-3xl font-black sm:text-4xl">Podium</h1>
         {me && (
           <p className="mt-3 text-slate-300">

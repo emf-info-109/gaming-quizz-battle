@@ -26,6 +26,7 @@ export function testConfig(overrides: Partial<Record<string, string>> = {}): App
     RATE_LIMIT_API_PER_MINUTE: '100000',
     RATE_LIMIT_PLAYER_CREATE_PER_15MIN: '100000',
     RATE_LIMIT_GAME_ACTIONS_PER_MINUTE: '100000',
+    RATE_LIMIT_CHAT_PER_MINUTE: '100000',
     ...overrides,
   });
 }

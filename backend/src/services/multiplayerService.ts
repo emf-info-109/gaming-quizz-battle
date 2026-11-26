@@ -12,7 +12,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AppConfig } from '../config.js';
 import { isDuplicateKeyError, withTransaction } from '../db/pool.js';
-import type { Pool, Queryable, RowDataPacket } from '../db/pool.js';
+import type { Pool, Queryable, ResultSetHeader, RowDataPacket } from '../db/pool.js';
 import { computeClock, type ClockState, type GameStatus } from '../domain/gameClock.js';
 import { generateGameCode } from '../domain/gameCode.js';
 import { computePoints } from '../domain/scoring.js';
@@ -23,10 +23,20 @@ import { loadPublicQuestion, type PublicQuestion } from './soloService.js';
 
 /** Une salle d'attente abandonnée expire après ce délai. */
 export const LOBBY_TTL_HOURS = 3;
+/**
+ * Une salle n'apparaît dans la liste publique que si son organisateur a interrogé
+ * la partie récemment (onglet ouvert). 90 s : les navigateurs ralentissent les
+ * minuteries des onglets en arrière-plan jusqu'à une fois par minute.
+ */
+export const LOBBY_HOST_PRESENCE_SECONDS = 90;
+/** Nombre de messages renvoyés au premier chargement du chat. */
+export const CHAT_HISTORY_LIMIT = 50;
 
 interface MultiGameRow extends RowDataPacket {
   id: string;
   code: string;
+  name: string;
+  is_public: number;
   host_player_id: string;
   status: GameStatus;
   category_name: string | null;
@@ -43,15 +53,17 @@ interface MultiGameRow extends RowDataPacket {
 
 async function loadGameByCode(db: Queryable, code: string, forUpdate = false) {
   const [rows] = await db.execute<MultiGameRow[]>(
-    `SELECT g.id, g.code, g.host_player_id, g.status, g.question_count, g.question_duration_ms,
+    `SELECT g.id, g.code, COALESCE(g.name, CONCAT('Partie de ', hp.pseudo)) AS name, g.is_public,
+            g.host_player_id, g.status, g.question_count, g.question_duration_ms,
             g.reveal_duration_ms, g.countdown_ms, g.max_players,
             TIMESTAMPDIFF(MICROSECOND, g.started_at, NOW(3)) DIV 1000 AS elapsed_ms,
             (g.created_at < NOW(3) - INTERVAL ${LOBBY_TTL_HOURS} HOUR) AS lobby_expired,
             c.name AS category_name, c.icon AS category_icon, c.slug AS category_slug
        FROM games g
+       JOIN players hp ON hp.id = g.host_player_id
        LEFT JOIN categories c ON c.id = g.category_id
       WHERE g.code = ? AND g.mode = 'multi'
-      ${forUpdate ? 'FOR UPDATE' : ''}`,
+      ${forUpdate ? 'FOR UPDATE OF g' : ''}`,
     [code],
   );
   const game = rows[0];
@@ -101,7 +113,22 @@ export async function finalizeElapsedGames(db: Queryable, gameId?: string): Prom
 //  Création / salle d'attente
 // -----------------------------------------------------------------------------
 
-export async function createMultiGame(pool: Pool, cfg: AppConfig['game'], host: AuthPlayer, categorySlug: string) {
+export interface CreateMultiOptions {
+  /** Nom de la partie (« Partie de <pseudo> » si absent) */
+  name?: string;
+  /** Visible dans la liste des parties en attente */
+  isPublic?: boolean;
+}
+
+export async function createMultiGame(
+  pool: Pool,
+  cfg: AppConfig['game'],
+  host: AuthPlayer,
+  categorySlug: string,
+  options: CreateMultiOptions = {},
+) {
+  const name = options.name ?? `Partie de ${host.pseudo}`;
+  const isPublic = options.isPublic ?? true;
   const category = await resolveCategory(pool, categorySlug);
   const questionIds = await pickRandomQuestionIds(pool, category?.id ?? null, cfg.questionsPerGame);
   if (questionIds.length === 0) throw badRequest('NO_QUESTIONS', 'Aucune question disponible pour cette catégorie.');
@@ -113,12 +140,14 @@ export async function createMultiGame(pool: Pool, cfg: AppConfig['game'], host: 
     try {
       await withTransaction(pool, async (conn) => {
         await conn.execute(
-          `INSERT INTO games (id, code, mode, host_player_id, category_id, status, question_count,
+          `INSERT INTO games (id, code, name, is_public, mode, host_player_id, category_id, status, question_count,
                               question_duration_ms, reveal_duration_ms, countdown_ms, max_players)
-           VALUES (?, ?, 'multi', ?, ?, 'lobby', ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, 'multi', ?, ?, 'lobby', ?, ?, ?, ?, ?)`,
           [
             gameId,
             code,
+            name,
+            isPublic,
             host.id,
             category?.id ?? null,
             questionIds.length,
@@ -135,7 +164,7 @@ export async function createMultiGame(pool: Pool, cfg: AppConfig['game'], host: 
           questionIds.flatMap((qid, i) => [gameId, i, qid]),
         );
       });
-      return { gameId, code };
+      return { gameId, code, name };
     } catch (err) {
       if (isDuplicateKeyError(err, 'uq_games_code') && attempt < 5) continue;
       throw err;
@@ -166,6 +195,7 @@ export async function joinMultiGame(pool: Pool, player: AuthPlayer, code: string
       throw conflict('GAME_FULL', `La partie est complète (${game.max_players} joueurs maximum).`);
     }
     await conn.execute('INSERT INTO game_players (game_id, player_id) VALUES (?, ?)', [game.id, player.id]);
+    await addSystemMessage(conn, game.id, `${player.pseudo} a rejoint la salle`);
     return { code: game.code, alreadyJoined: false };
   });
 }
@@ -182,6 +212,7 @@ export async function leaveMultiGame(pool: Pool, player: AuthPlayer, code: strin
       await conn.execute(`UPDATE games SET status = 'cancelled', finished_at = NOW(3) WHERE id = ?`, [game.id]);
     } else {
       await conn.execute('DELETE FROM game_players WHERE game_id = ? AND player_id = ?', [game.id, player.id]);
+      await addSystemMessage(conn, game.id, `${player.pseudo} a quitté la salle`);
     }
     return { left: true };
   });
@@ -216,8 +247,21 @@ export interface PlayerStanding {
   lastPoints: number | null;
 }
 
+export interface ChatMessage {
+  id: number;
+  kind: 'chat' | 'system';
+  /** null pour un message automatique */
+  playerId: string | null;
+  pseudo: string | null;
+  avatar: string | null;
+  text: string;
+  createdAt: string;
+}
+
 export interface MultiGameState {
   code: string;
+  name: string;
+  isPublic: boolean;
   status: GameStatus;
   phase: ClockState['phase'];
   phaseRemainingMs: number;
@@ -236,14 +280,35 @@ export interface MultiGameState {
   question: PublicQuestion | null;
   myAnswer: { choice: number | null; isCorrect?: boolean; points?: number } | null;
   reveal: { correctIndex: number; distribution: [number, number, number, number] } | null;
+  /**
+   * Chat de la salle d'attente (vide une fois la partie lancée). Avec
+   * `afterMessageId`, seuls les messages plus récents sont renvoyés.
+   */
+  messages: ChatMessage[];
 }
 
-export async function getMultiGameState(pool: Pool, player: AuthPlayer, code: string): Promise<MultiGameState> {
+export async function getMultiGameState(
+  pool: Pool,
+  player: AuthPlayer,
+  code: string,
+  afterMessageId?: number,
+): Promise<MultiGameState> {
   let game = await loadGameByCode(pool, code);
   if (!(await isParticipant(pool, game.id, player.id))) {
     throw forbidden('NOT_IN_GAME', 'Tu ne participes pas à cette partie. Rejoins-la avec son code.');
   }
   let clock = clockOf(game);
+
+  let messages: ChatMessage[] = [];
+  if (game.status === 'lobby') {
+    // Présence dans la salle (au plus une écriture toutes les 5 s par joueur).
+    await pool.execute(
+      `UPDATE game_players SET last_seen_at = NOW(3)
+        WHERE game_id = ? AND player_id = ? AND last_seen_at < NOW(3) - INTERVAL 5 SECOND`,
+      [game.id, player.id],
+    );
+    messages = await loadMessages(pool, game.id, afterMessageId);
+  }
 
   // La partie est terminée selon l'horloge mais pas encore en base : on persiste.
   if (clock.phase === 'finished' && game.status === 'in_progress') {
@@ -334,6 +399,8 @@ export async function getMultiGameState(pool: Pool, player: AuthPlayer, code: st
 
   return {
     code: game.code,
+    name: game.name,
+    isPublic: Boolean(Number(game.is_public)),
     status: game.status,
     phase: clock.phase,
     phaseRemainingMs: Math.round(clock.phaseRemainingMs),
@@ -352,6 +419,7 @@ export async function getMultiGameState(pool: Pool, player: AuthPlayer, code: st
     question,
     myAnswer,
     reveal,
+    messages,
   };
 }
 
@@ -419,4 +487,117 @@ export async function submitMultiAnswer(
     // La correction n'est PAS renvoyée ici : elle sera visible à la fin du chrono.
     return { accepted: true, position, choice };
   });
+}
+
+// -----------------------------------------------------------------------------
+//  Chat de la salle d'attente
+// -----------------------------------------------------------------------------
+
+async function addSystemMessage(db: Queryable, gameId: string, text: string): Promise<void> {
+  await db.execute(`INSERT INTO game_messages (game_id, player_id, kind, body) VALUES (?, NULL, 'system', ?)`, [
+    gameId,
+    text.slice(0, 200),
+  ]);
+}
+
+async function loadMessages(db: Queryable, gameId: string, afterMessageId?: number): Promise<ChatMessage[]> {
+  // Premier chargement : les derniers messages ; ensuite : uniquement les nouveaux.
+  const [rows] =
+    afterMessageId === undefined
+      ? await db.execute<RowDataPacket[]>(
+          `SELECT * FROM (
+             SELECT m.id, m.kind, m.player_id, p.pseudo, p.avatar, m.body, m.created_at
+               FROM game_messages m LEFT JOIN players p ON p.id = m.player_id
+              WHERE m.game_id = ?
+              ORDER BY m.id DESC LIMIT ${CHAT_HISTORY_LIMIT}
+           ) last ORDER BY id ASC`,
+          [gameId],
+        )
+      : await db.execute<RowDataPacket[]>(
+          `SELECT m.id, m.kind, m.player_id, p.pseudo, p.avatar, m.body, m.created_at
+             FROM game_messages m LEFT JOIN players p ON p.id = m.player_id
+            WHERE m.game_id = ? AND m.id > ?
+            ORDER BY m.id ASC LIMIT ${CHAT_HISTORY_LIMIT * 2}`,
+          [gameId, afterMessageId],
+        );
+  return rows.map((r) => ({
+    id: Number(r.id),
+    kind: r.kind,
+    playerId: r.player_id ?? null,
+    pseudo: r.pseudo ?? null,
+    avatar: r.avatar ?? null,
+    text: r.body,
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
+}
+
+export async function postChatMessage(pool: Pool, player: AuthPlayer, code: string, text: string) {
+  const game = await loadGameByCode(pool, code);
+  if (!(await isParticipant(pool, game.id, player.id))) {
+    throw forbidden('NOT_IN_GAME', 'Tu ne participes pas à cette partie.');
+  }
+  if (game.status !== 'lobby') throw conflict('CHAT_CLOSED', 'Le chat est fermé : la partie a commencé.');
+  const [res] = await pool.execute<ResultSetHeader>(
+    `INSERT INTO game_messages (game_id, player_id, kind, body) VALUES (?, ?, 'chat', ?)`,
+    [game.id, player.id, text],
+  );
+  return { id: Number(res.insertId) };
+}
+
+// -----------------------------------------------------------------------------
+//  Liste des parties en attente de joueurs
+// -----------------------------------------------------------------------------
+
+export interface OpenGame {
+  code: string;
+  name: string;
+  category: string;
+  categorySlug: string | null;
+  host: { pseudo: string; avatar: string };
+  playerCount: number;
+  maxPlayers: number;
+  questionCount: number;
+  /** Le joueur qui consulte la liste est déjà dans cette salle */
+  joined: boolean;
+  createdAt: string;
+}
+
+/**
+ * Salles publiques, pas encore lancées, pas expirées, dont l'organisateur est
+ * toujours présent. Les plus récentes d'abord ; les salles complètes restent
+ * visibles (affichées « complète »).
+ */
+export async function listOpenGames(pool: Pool, player: AuthPlayer): Promise<OpenGame[]> {
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT g.code, COALESCE(g.name, CONCAT('Partie de ', hp.pseudo)) AS name, g.max_players, g.question_count,
+            g.created_at, c.name AS category_name, c.slug AS category_slug,
+            hp.pseudo AS host_pseudo, hp.avatar AS host_avatar,
+            COUNT(gp.player_id) AS player_count,
+            COALESCE(SUM(gp.player_id = ?), 0) AS joined
+       FROM games g
+       JOIN players hp ON hp.id = g.host_player_id
+       JOIN game_players host_gp ON host_gp.game_id = g.id AND host_gp.player_id = g.host_player_id
+       JOIN game_players gp ON gp.game_id = g.id
+       LEFT JOIN categories c ON c.id = g.category_id
+      WHERE g.mode = 'multi' AND g.status = 'lobby' AND g.is_public
+        AND g.created_at >= NOW(3) - INTERVAL ${LOBBY_TTL_HOURS} HOUR
+        AND host_gp.last_seen_at >= NOW(3) - INTERVAL ${LOBBY_HOST_PRESENCE_SECONDS} SECOND
+      GROUP BY g.id, g.code, g.name, g.max_players, g.question_count, g.created_at,
+               c.name, c.slug, hp.pseudo, hp.avatar
+      ORDER BY g.created_at DESC
+      LIMIT 50`,
+    [player.id],
+  );
+  return rows.map((r) => ({
+    code: r.code,
+    name: r.name,
+    category: r.category_name ?? 'Toutes catégories',
+    categorySlug: r.category_slug ?? null,
+    host: { pseudo: r.host_pseudo, avatar: r.host_avatar },
+    playerCount: Number(r.player_count),
+    maxPlayers: Number(r.max_players),
+    questionCount: Number(r.question_count),
+    joined: Number(r.joined) > 0,
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
 }

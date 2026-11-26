@@ -11,6 +11,7 @@ import type {
   InstanceInfo,
   LeaderboardEntry,
   MultiGameState,
+  OpenGame,
   Player,
   PlayerStats,
   SoloAnswerResult,
@@ -113,9 +114,16 @@ export const api = {
     post<SoloAnswerResult>(`/api/solo/games/${id}/answers`, { position, choice }),
   soloResults: (id: string) => get<SoloResults>(`/api/solo/games/${id}/results`),
 
-  createMulti: (category: string) => post<{ gameId: string; code: string }>('/api/games', { category }),
+  createMulti: (category: string, options: { name?: string; isPublic?: boolean } = {}) =>
+    post<{ gameId: string; code: string; name: string }>('/api/games', { category, ...options }),
+  openGames: (signal?: AbortSignal) => get<{ games: OpenGame[] }>('/api/games', signal).then((r) => r.games),
   joinMulti: (code: string) => post<{ code: string; alreadyJoined: boolean }>('/api/games/join', { code }),
-  multiState: (code: string, signal?: AbortSignal) => get<MultiGameState>(`/api/games/${code}`, signal),
+  multiState: (code: string, signal?: AbortSignal, afterMessageId?: number) =>
+    get<MultiGameState>(
+      `/api/games/${code}${afterMessageId !== undefined ? `?afterMessageId=${afterMessageId}` : ''}`,
+      signal,
+    ),
+  sendChat: (code: string, text: string) => post<{ id: number }>(`/api/games/${code}/messages`, { text }),
   startMulti: (code: string) => post<{ started: boolean }>(`/api/games/${code}/start`),
   leaveMulti: (code: string) => post<{ left: boolean }>(`/api/games/${code}/leave`),
   answerMulti: (code: string, position: number, choice: number) =>

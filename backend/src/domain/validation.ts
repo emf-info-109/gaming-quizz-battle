@@ -36,7 +36,57 @@ export const categorySlugSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9-]{1,40}$/, 'Catégorie invalide.');
 
-export const createGameSchema = z.object({ category: categorySlugSchema }).strict();
+/** Nom de partie : lettres, chiffres, espaces, ponctuation courante et emojis. */
+const GAME_NAME_REGEX = /^[\p{L}\p{N}\p{Extended_Pictographic}][\p{L}\p{N}\p{Extended_Pictographic}\u200d\ufe0f '’!?.,:;_#&()+-]*$/u;
+
+export const gameNameSchema = z
+  .string()
+  .transform((s) => s.normalize('NFC').trim().replace(/\s+/g, ' '))
+  .pipe(
+    z
+      .string()
+      .min(3, 'Le nom de la partie doit contenir au moins 3 caractères.')
+      .max(40, 'Le nom de la partie doit contenir au maximum 40 caractères.')
+      .regex(GAME_NAME_REGEX, 'Le nom de la partie contient des caractères non autorisés.'),
+  );
+
+export const createGameSchema = z
+  .object({
+    category: categorySlugSchema,
+    /** Facultatif : « Partie de <pseudo> » par défaut. */
+    name: z
+      .string()
+      .optional()
+      .transform((s) => (s && s.trim() ? s : undefined))
+      .pipe(gameNameSchema.optional()),
+    /** true = visible dans la liste des parties en attente ; false = uniquement avec le code. */
+    isPublic: z.boolean().default(true),
+  })
+  .strict();
+
+/**
+ * Message du chat : caractères de contrôle et caractères d'inversion du sens
+ * d'écriture (utilisés pour maquiller un texte) supprimés, espaces normalisés.
+ */
+export const chatMessageSchema = z
+  .object({
+    text: z
+      .string()
+      .transform((s) =>
+        s
+          .normalize('NFC')
+          .replace(/[\p{Cc}\u202a-\u202e\u2066-\u2069]/gu, ' ')
+          .trim()
+          .replace(/\s+/g, ' '),
+      )
+      .pipe(z.string().min(1, 'Le message est vide.').max(200, 'Le message est trop long (200 caractères maximum).')),
+  })
+  .strict();
+
+/** Polling de l'état : ne renvoyer que les messages plus récents que celui-ci. */
+export const gameStateQuerySchema = z.object({
+  afterMessageId: z.coerce.number().int().min(0).optional(),
+});
 
 export const gameCodeSchema = z
   .string()

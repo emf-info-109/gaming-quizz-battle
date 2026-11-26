@@ -20,14 +20,14 @@ const ACTIONS = [
     to: '/multi/create',
     icon: '⚔️',
     title: 'Créer une partie',
-    text: 'Deviens l’organisateur, partage le code et défie jusqu’à 29 adversaires.',
+    text: 'Nomme ta salle, discute avec les joueurs qui arrivent et défie jusqu’à 29 adversaires.',
     accent: 'from-neon-blue/30',
   },
   {
     to: '/multi/join',
     icon: '🚀',
     title: 'Rejoindre une partie',
-    text: 'Entre le code à 6 caractères donné par l’organisateur.',
+    text: 'Choisis une salle dans la liste des parties en attente, ou entre son code.',
     accent: 'from-neon-violet/30',
   },
 ];

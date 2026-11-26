@@ -94,8 +94,35 @@ export interface PlayerStanding {
   lastPoints: number | null;
 }
 
+export interface ChatMessage {
+  id: number;
+  kind: 'chat' | 'system';
+  /** null pour un message automatique (« X a rejoint la salle ») */
+  playerId: string | null;
+  pseudo: string | null;
+  avatar: string | null;
+  text: string;
+  createdAt: string;
+}
+
+/** Salle publique en attente de joueurs (liste « Rejoindre une partie ») */
+export interface OpenGame {
+  code: string;
+  name: string;
+  category: string;
+  categorySlug: string | null;
+  host: { pseudo: string; avatar: string };
+  playerCount: number;
+  maxPlayers: number;
+  questionCount: number;
+  joined: boolean;
+  createdAt: string;
+}
+
 export interface MultiGameState {
   code: string;
+  name: string;
+  isPublic: boolean;
   status: 'lobby' | 'in_progress' | 'finished' | 'cancelled';
   phase: MultiPhase;
   phaseRemainingMs: number;
@@ -115,6 +142,8 @@ export interface MultiGameState {
   question: PublicQuestion | null;
   myAnswer: { choice: number | null; isCorrect?: boolean; points?: number } | null;
   reveal: { correctIndex: number; distribution: [number, number, number, number] } | null;
+  /** Chat de la salle d'attente : uniquement les messages postérieurs à `afterMessageId` */
+  messages: ChatMessage[];
 }
 
 export interface LeaderboardEntry {

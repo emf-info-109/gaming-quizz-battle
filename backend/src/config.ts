@@ -68,6 +68,7 @@ const envSchema = z.object({
   RATE_LIMIT_PLAYER_CREATE_PER_15MIN: intFromEnv(100, 1, 1_000_000),
   RATE_LIMIT_GAME_ACTIONS_PER_MINUTE: intFromEnv(30, 1, 1_000_000),
   RATE_LIMIT_DIAG_PER_MINUTE: intFromEnv(600, 1, 1_000_000),
+  RATE_LIMIT_CHAT_PER_MINUTE: intFromEnv(20, 1, 1_000_000),
 });
 
 export interface AppConfig {
@@ -101,6 +102,7 @@ export interface AppConfig {
     playerCreatePer15Min: number;
     gameActionsPerMinute: number;
     diagPerMinute: number;
+    chatPerMinute: number;
   };
 }
 
@@ -151,6 +153,7 @@ export function buildConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       playerCreatePer15Min: e.RATE_LIMIT_PLAYER_CREATE_PER_15MIN,
       gameActionsPerMinute: e.RATE_LIMIT_GAME_ACTIONS_PER_MINUTE,
       diagPerMinute: e.RATE_LIMIT_DIAG_PER_MINUTE,
+      chatPerMinute: e.RATE_LIMIT_CHAT_PER_MINUTE,
     },
   };
 }

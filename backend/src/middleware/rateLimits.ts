@@ -36,5 +36,6 @@ export function createRateLimiters(cfg: AppConfig['rateLimits']) {
     ),
     gameActions: limiter(60_000, cfg.gameActionsPerMinute, 'player', 'Trop d’actions sur les parties. Ralentis un peu !'),
     diag: limiter(60_000, cfg.diagPerMinute, 'ip', 'Limite du générateur de diagnostic atteinte. Attends une minute.'),
+    chat: limiter(60_000, cfg.chatPerMinute, 'player', 'Tu envoies trop de messages. Attends un peu avant d’en écrire un autre.'),
   };
 }
