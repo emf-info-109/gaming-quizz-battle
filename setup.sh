@@ -8,7 +8,7 @@
 #
 #  L'assistant (fenêtres navigables au clavier) :
 #    1. vérifie les prérequis (Nginx),
-#    2. demande le nom du serveur et les informations de connexion MySQL,
+#    2. demande le nom du serveur, le port du site web et les informations MySQL,
 #    3. teste la connexion à la base AVANT d'installer quoi que ce soit,
 #    4. installe Node.js, compile l'application, crée le service systemd,
 #       configure Nginx et démarre l'application.
@@ -18,7 +18,10 @@
 #
 #  Mode automatique, sans fenêtre (tests, scripts) :
 #     sudo GQ_INSTANCE_NAME=WEB-01 GQ_DB_HOST=10.0.2.4 GQ_DB_PASSWORD=xxx ./setup.sh --yes
+#  (port du site : GQ_WEB_PORT=8080, défaut 80)
 #  Mode texte (sans fenêtres) : sudo ./setup.sh --text
+#
+#  Désinstallation : sudo /opt/gaming-quiz-battle/uninstall.sh
 # =============================================================================
 set -Eeuo pipefail
 
@@ -28,6 +31,8 @@ ENV_FILE="$ENV_DIR/gaming-quiz.env"
 WEB_ROOT=/var/www/gaming-quiz
 SERVICE=gaming-quiz
 SERVICE_USER=gamingquiz
+NGINX_SITE=/etc/nginx/sites-available/gaming-quiz
+API_PORT=3000   # port interne d'Express (127.0.0.1), uniquement joignable par Nginx
 LOG_FILE=/var/log/gaming-quiz-setup.log
 NODE_MAJOR=24
 NODE_MIN="22.22.0"
@@ -39,7 +44,7 @@ for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=1 ;;
     --text) FORCE_TEXT=1 ;;
-    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
     *) echo "Option inconnue : $arg (voir --help)"; exit 2 ;;
   esac
 done
@@ -68,6 +73,16 @@ if [[ -t 1 ]]; then
 else
   C_RESET=''; C_BOLD=''; C_DIM=''; C_RED=''; C_GREEN=''; C_YELLOW=''; C_CYAN=''
 fi
+
+# apt sans aucune question (y compris dans le script NodeSource et needrestart),
+# et attente (au lieu d'un blocage muet) si les mises à jour automatiques d'Ubuntu tiennent le verrou.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a NEEDRESTART_SUSPEND=1
+APT_CONF_TMP="$(mktemp /tmp/gq-apt.XXXXXX)"
+echo 'DPkg::Lock::Timeout "900";' >"$APT_CONF_TMP"
+chmod 644 "$APT_CONF_TMP"
+export APT_CONFIG="$APT_CONF_TMP"
+trap 'rm -f "$APT_CONF_TMP"' EXIT
 
 : >>"$LOG_FILE"
 echo "===== Assistant lancé le $(date '+%F %T') (interface : $UI)" >>"$LOG_FILE"
@@ -173,13 +188,16 @@ progress_start() {
   exec 3>"$GAUGE_FIFO"
 }
 
+PROGRESS_PCT=0
+PROGRESS_MSG=""
 progress() { # progress POURCENTAGE "Texte"
+  PROGRESS_PCT="$1"; PROGRESS_MSG="$2"
   if [[ -n "$GAUGE_PID" ]]; then
     printf 'XXX\n%d\n%s\n\n(détails : %s)\nXXX\n' "$1" "$2" "$LOG_FILE" >&3
   else
     echo; echo "${C_BOLD}${C_CYAN}[$1 %] $2${C_RESET}"
   fi
-  log "----- [$1 %] $2"
+  log "----- $(date +%T) [$1 %] $2"
 }
 
 progress_end() {
@@ -214,8 +232,25 @@ trap 'die "Erreur inattendue (ligne $LINENO)."' ERR
 run() {
   local msg="$1"; shift
   [[ $UI == text ]] && printf "  %s… " "$msg"
-  log "== $msg : $*"
-  if "$@" </dev/null >>"$LOG_FILE" 2>&1; then
+  log "== $(date +%T) $msg : $*"
+  local rc=0
+  if [[ -n "$GAUGE_PID" ]]; then
+    # Barre de progression : on affiche le temps écoulé et la dernière ligne du journal,
+    # pour voir que ça avance (ou sur quoi ça attend).
+    "$@" </dev/null >>"$LOG_FILE" 2>&1 &
+    local pid=$! start=$SECONDS last
+    while kill -0 "$pid" 2>/dev/null; do
+      last="$(tail -n 1 "$LOG_FILE" 2>/dev/null | tr -d '\r\000-\010\013-\037' | cut -c1-70)"
+      printf 'XXX\n%d\n%s\n\n%s – %d s\n> %s\nXXX\n' "$PROGRESS_PCT" "$PROGRESS_MSG" \
+        "$msg" "$((SECONDS - start))" "$last" >&3 || true
+      sleep 2
+    done
+    wait "$pid" || rc=$?
+  else
+    "$@" </dev/null >>"$LOG_FILE" 2>&1 || rc=$?
+  fi
+  log "== $(date +%T) fin de « $msg » (code $rc)"
+  if [[ $rc -eq 0 ]]; then
     [[ $UI == text ]] && echo "${C_GREEN}ok${C_RESET}"
     return 0
   fi
@@ -233,6 +268,35 @@ env_set() { # env_set CLE VALEUR FICHIER
     { print }
     END { if (!found) print ENVIRON["K"] "=" ENVIRON["V"] }' "$3" >"$tmp"
   cat "$tmp" >"$3"; rm -f "$tmp"
+}
+
+# --- Port du site web (Nginx) --------------------------------------------------
+# Port actuellement configuré (installation précédente), vide sinon.
+current_web_port() {
+  [[ -f "$NGINX_SITE" ]] || return 0
+  grep -oE '^[[:space:]]*listen[[:space:]]+[0-9]+' "$NGINX_SITE" | grep -oE '[0-9]+' | head -n1 || true
+}
+
+# Nom du programme qui écoute déjà sur ce port TCP (vide si libre).
+port_owner() {
+  ss -Hltnp "( sport = :$1 )" 2>/dev/null | grep -oE 'users:\(\("[^"]+"' | head -n1 | cut -d'"' -f2 || true
+}
+
+# Vérifie un port choisi ; message d'erreur dans PORT_ERROR.
+PORT_ERROR=""
+web_port_check() {
+  local p="$1" owner
+  PORT_ERROR=""
+  if (( p < 1 || p > 65535 )); then PORT_ERROR="Le port doit être compris entre 1 et 65535."; return 1; fi
+  if (( p == API_PORT )); then
+    PORT_ERROR="Le port $API_PORT est réservé à l'API interne de l'application. Choisis-en un autre (ex : 8080)."; return 1
+  fi
+  owner="$(port_owner "$p")"
+  if [[ -n "$owner" && "$owner" != "nginx" ]]; then
+    PORT_ERROR="Le port $p est déjà utilisé par le programme « $owner ».
+Choisis un autre port (ex : 8080), ou arrête ce programme."; return 1
+  fi
+  return 0
 }
 
 version_ge() { [[ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" == "$2" ]]; }
@@ -304,6 +368,7 @@ Avant de continuer, vérifie que tu as :
 
 L'assistant va te demander :
   - le nom de ce serveur (ex : WEB-01) ;
+  - le port du site web (80 par défaut) ;
   - l'adresse IP, l'utilisateur et le mot de passe MySQL.
 
 Navigation : Tab / flèches pour se déplacer, Entrée pour valider,
@@ -329,11 +394,13 @@ run "Installation des outils" env DEBIAN_FRONTEND=noninteractive apt-get install
 #  ÉTAPE 2 – Questions
 # =============================================================================
 KEEP_CONFIG=0
-INSTANCE_NAME="" DB_HOST="" DB_PORT="" DB_NAME="" DB_USER="" DB_PASSWORD=""
+INSTANCE_NAME="" WEB_PORT="" DB_HOST="" DB_PORT="" DB_NAME="" DB_USER="" DB_PASSWORD=""
+OLD_WEB_PORT="$(current_web_port)"
 if [[ -f "$ENV_FILE" ]]; then
   if ui_yesno "Une configuration existe déjà sur cette VM :
 
   Nom du serveur : $(env_get INSTANCE_NAME)
+  Port du site   : ${OLD_WEB_PORT:-80}
   Base MySQL     : $(env_get DB_USER)@$(env_get DB_HOST):$(env_get DB_PORT)/$(env_get DB_NAME)
 
 La garder ? (Non = la modifier)"; then
@@ -342,17 +409,33 @@ La garder ? (Non = la modifier)"; then
 fi
 
 if [[ $KEEP_CONFIG -eq 1 ]]; then
-  INSTANCE_NAME="$(env_get INSTANCE_NAME)"; DB_HOST="$(env_get DB_HOST)"; DB_PORT="$(env_get DB_PORT)"
+  INSTANCE_NAME="$(env_get INSTANCE_NAME)"; WEB_PORT="${OLD_WEB_PORT:-80}"
+  DB_HOST="$(env_get DB_HOST)"; DB_PORT="$(env_get DB_PORT)"
   DB_NAME="$(env_get DB_NAME)"; DB_USER="$(env_get DB_USER)"; DB_PASSWORD="$(env_get DB_PASSWORD)"
 else
   d_name="${GQ_INSTANCE_NAME:-$(env_get INSTANCE_NAME)}"
   d_name="${d_name:-$(hostname -s | tr '[:lower:]' '[:upper:]')}"
-  ask INSTANCE_NAME "Nom de ce serveur" "Étape 1/5 - Nom de ce serveur
+  ask INSTANCE_NAME "Nom de ce serveur" "Étape 1/6 - Nom de ce serveur
 
 Ce nom s'affiche en bas du site et permet de savoir quel serveur répond.
 Exemple : WEB-01. (Si tu ajoutes plus tard un 2e serveur web, donne-lui
 un autre nom, ex : WEB-02.)" \
     "$d_name" '^[A-Za-z0-9._-]{1,40}$' "Uniquement lettres, chiffres, point, tiret ou underscore (40 caractères max)."
+
+  d_web="${GQ_WEB_PORT:-${OLD_WEB_PORT:-80}}"
+  while true; do
+    ask WEB_PORT "Port du site web" "Étape 2/6 - Port du site web
+
+Port sur lequel le site sera accessible (http://<IP>:<port>/).
+Laisse 80 (port web standard) sauf si ce port est déjà utilisé.
+Avec un autre port (ex : 8080), pense à l'ouvrir dans le NSG / pare-feu." \
+      "$d_web" '^[0-9]{1,5}$' "Le port doit être un nombre (ex : 80 ou 8080)."
+    WEB_PORT=$((10#$WEB_PORT))
+    web_port_check "$WEB_PORT" && break
+    [[ $ASSUME_YES -eq 1 ]] && die "$PORT_ERROR"
+    if [[ $UI == wizard ]]; then ui_msg "$PORT_ERROR"; else echo "  ${C_YELLOW}⚠ $PORT_ERROR${C_RESET}"; fi
+    d_web="$WEB_PORT"
+  done
 fi
 
 while true; do
@@ -362,24 +445,24 @@ while true; do
     d_db="${DB_NAME:-${GQ_DB_NAME:-$(env_get DB_NAME)}}"; d_user="${DB_USER:-${GQ_DB_USER:-$(env_get DB_USER)}}"
     d_pass="${DB_PASSWORD:-${GQ_DB_PASSWORD:-$(env_get DB_PASSWORD)}}"
     [[ "$d_pass" == "change-me" ]] && d_pass=""
-    ask DB_HOST "Adresse IP du serveur MySQL" "Étape 2/5 - Serveur de base de données
+    ask DB_HOST "Adresse IP du serveur MySQL" "Étape 3/6 - Serveur de base de données
 
 Adresse IP privée de la VM base de données (MySQL).
 Exemple : 10.0.2.4" \
       "$d_host" '^[A-Za-z0-9.:-]+$' "Adresse invalide (exemple : 10.0.2.4)."
-    ask DB_PORT "Port MySQL" "Étape 3/5 - Port MySQL
+    ask DB_PORT "Port MySQL" "Étape 4/6 - Port MySQL
 
 Laisse 3306 sauf si ton serveur MySQL utilise un autre port." \
       "${d_port:-3306}" '^[0-9]{1,5}$' "Le port doit être un nombre (ex : 3306)."
-    ask DB_NAME "Nom de la base" "Étape 4/5 - Base de données
+    ask DB_NAME "Nom de la base" "Étape 5/6 - Base de données
 
 Nom de la base créée en prérequis (CREATE DATABASE ...)." \
       "${d_db:-gaming_quiz}" '^[A-Za-z0-9_]{1,64}$' "Lettres, chiffres et underscore uniquement."
-    ask DB_USER "Utilisateur MySQL" "Étape 5/5 - Utilisateur MySQL
+    ask DB_USER "Utilisateur MySQL" "Étape 6/6 - Utilisateur MySQL
 
 Nom de l'utilisateur créé en prérequis (CREATE USER ...)." \
       "${d_user:-quiz_app}" '^[A-Za-z0-9_.-]{1,32}$' "Lettres, chiffres, point, tiret et underscore uniquement."
-    ask DB_PASSWORD "Mot de passe MySQL" "Étape 5/5 - Mot de passe MySQL
+    ask DB_PASSWORD "Mot de passe MySQL" "Étape 6/6 - Mot de passe MySQL
 
 Mot de passe de l'utilisateur « $DB_USER ».
 (Rien ne s'affiche quand tu tapes : c'est normal.)" \
@@ -406,10 +489,14 @@ Corriger les informations de connexion ?" 20 76 || cancelled
   KEEP_CONFIG=0
 done
 
+web_port_check "$WEB_PORT" || die "$PORT_ERROR
+(Relance l'assistant et réponds Non à « La garder ? » pour choisir un autre port.)"
+
 ui_yesno "Connexion à MySQL réussie !
 
 Récapitulatif :
   Nom du serveur : $INSTANCE_NAME
+  Port du site   : $WEB_PORT
   Base MySQL     : $DB_USER@$DB_HOST:$DB_PORT/$DB_NAME
   Application    : $APP_DIR
 
@@ -426,7 +513,8 @@ if [[ -n "$current_node" ]] && version_ge "$current_node" "$NODE_MIN"; then
   log "Node.js $current_node déjà installé"
 else
   run "Ajout du dépôt Node.js $NODE_MAJOR" bash -c \
-    "curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x -o /tmp/nodesource_setup.sh && bash /tmp/nodesource_setup.sh"
+    "curl -fsSL --connect-timeout 20 --max-time 120 https://deb.nodesource.com/setup_${NODE_MAJOR}.x -o /tmp/nodesource_setup.sh && bash /tmp/nodesource_setup.sh"
+  progress 12 "Installation de Node.js…"
   run "Installation de Node.js" env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
 fi
 NODE_BIN="$(command -v node)"
@@ -447,7 +535,7 @@ NEW_ENV="$(mktemp)"; chmod 600 "$NEW_ENV"
 if [[ -f "$ENV_FILE" ]]; then cat "$ENV_FILE" >"$NEW_ENV"; else cat "$APP_DIR/.env.example" >"$NEW_ENV"; fi
 env_set NODE_ENV production "$NEW_ENV"
 env_set HOST 127.0.0.1 "$NEW_ENV"
-env_set PORT 3000 "$NEW_ENV"
+env_set PORT "$API_PORT" "$NEW_ENV"
 env_set INSTANCE_NAME "$INSTANCE_NAME" "$NEW_ENV"
 env_set DB_HOST "$DB_HOST" "$NEW_ENV"
 env_set DB_PORT "$DB_PORT" "$NEW_ENV"
@@ -467,17 +555,24 @@ run "(Re)démarrage de l'API" systemctl restart "$SERVICE"
 progress 88 "Configuration de Nginx…"
 mkdir -p "$WEB_ROOT"
 run "Copie du site" rsync -a --delete "$APP_DIR/frontend/dist/" "$WEB_ROOT/"
-cp "$APP_DIR/deployment/nginx/gaming-quiz.conf" /etc/nginx/sites-available/gaming-quiz
-ln -sf /etc/nginx/sites-available/gaming-quiz /etc/nginx/sites-enabled/gaming-quiz
-rm -f /etc/nginx/sites-enabled/default
+sed -E -e "s#^([[:space:]]*listen[[:space:]]+(\[::\]:)?)80([[:space:];])#\1$WEB_PORT\3#" \
+  -e "s#127\.0\.0\.1:3000#127.0.0.1:$API_PORT#g" \
+  "$APP_DIR/deployment/nginx/gaming-quiz.conf" >"$NGINX_SITE"
+ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/gaming-quiz
+# Le site par défaut de Nginx occupe le port 80 : on ne le retire que si on prend ce port.
+[[ "$WEB_PORT" == 80 ]] && rm -f /etc/nginx/sites-enabled/default
 run "Vérification de la configuration Nginx" nginx -t
 run "Activation de Nginx" systemctl enable nginx
 run "Rechargement de Nginx" bash -c "systemctl reload nginx 2>/dev/null || systemctl restart nginx"
+# Pare-feu local (ufw) : s'il est actif, on ouvre le port du site.
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "^Status: active"; then
+  run "Ouverture du port $WEB_PORT dans le pare-feu (ufw)" ufw allow "$WEB_PORT/tcp" comment "gaming-quiz"
+fi
 
 progress 95 "Démarrage de l'application (création des tables et des questions au 1er démarrage)…"
 READY=0
 for _ in $(seq 1 60); do
-  if [[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ready || true)" == "200" ]]; then READY=1; break; fi
+  if [[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$WEB_PORT/ready || true)" == "200" ]]; then READY=1; break; fi
   sleep 1
 done
 if [[ $READY -ne 1 ]]; then
@@ -494,9 +589,10 @@ trap - ERR
 #  ÉTAPE 4 – Résultat
 # =============================================================================
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+URL_PORT=""; [[ "$WEB_PORT" == 80 ]] || URL_PORT=":$WEB_PORT"
 SUMMARY="Installation terminée !
 
-Site web       : http://${IP:-<IP-de-la-VM>}/
+Site web       : http://${IP:-<IP-de-la-VM>}$URL_PORT/
 Nom du serveur : $INSTANCE_NAME (affiché en bas de la page)
 
 Commandes utiles :
@@ -504,10 +600,10 @@ Commandes utiles :
   journalctl -u $SERVICE -f        logs en direct (Ctrl+C pour quitter)
   sudo systemctl restart $SERVICE  redémarrer l'application
 
-Pour mettre à jour ou modifier la configuration, relancer :
-  sudo $APP_DIR/setup.sh"
+Mettre à jour / modifier la configuration : sudo $APP_DIR/setup.sh
+Désinstaller l'application               : sudo $APP_DIR/uninstall.sh"
 if [[ $UI == wizard ]]; then
-  whiptail --title "$TITLE" --msgbox "$SUMMARY" 18 76 || true
+  whiptail --title "$TITLE" --msgbox "$SUMMARY" 19 78 || true
   clear
 fi
 echo

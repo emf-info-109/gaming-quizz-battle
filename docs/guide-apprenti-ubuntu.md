@@ -153,12 +153,19 @@ Les fenêtres se suivent ainsi :
 
 | Fenêtre | Que répondre |
 |---|---|
-| **Étape 1/5 – Nom de ce serveur** | Accepter la valeur proposée, ou `WEB-01` |
-| **Étape 2/5 – Serveur de base de données** | L'IP privée de la VM DATABASE (ex. `10.0.2.4`) |
-| **Étape 3/5 – Port MySQL** | Laisser `3306` → **Entrée** |
-| **Étape 4/5 – Base de données** | Laisser `gaming_quiz` → **Entrée** |
-| **Étape 5/5 – Utilisateur MySQL** | Laisser `quiz_app` → **Entrée** |
-| **Étape 5/5 – Mot de passe MySQL** | Votre mot de passe (**rien ne s'affiche** quand vous tapez : c'est normal) |
+| **Étape 1/6 – Nom de ce serveur** | Accepter la valeur proposée, ou `WEB-01` |
+| **Étape 2/6 – Port du site web** | Laisser `80` → **Entrée** (voir la remarque ci-dessous) |
+| **Étape 3/6 – Serveur de base de données** | L'IP privée de la VM DATABASE (ex. `10.0.2.4`) |
+| **Étape 4/6 – Port MySQL** | Laisser `3306` → **Entrée** |
+| **Étape 5/6 – Base de données** | Laisser `gaming_quiz` → **Entrée** |
+| **Étape 6/6 – Utilisateur MySQL** | Laisser `quiz_app` → **Entrée** |
+| **Étape 6/6 – Mot de passe MySQL** | Votre mot de passe (**rien ne s'affiche** quand vous tapez : c'est normal) |
+
+> 🔌 **Port du site web** : `80` est le port web standard (`http://<IP>/`). Choisissez un autre
+> port (ex. `8080`) seulement si le 80 est déjà pris : le site sera alors à `http://<IP>:8080/`,
+> et il faudra **autoriser ce port dans le NSG** Azure. L'assistant refuse un port déjà utilisé
+> par un autre programme, ainsi que le `3000` (réservé à l'API interne). Si le pare-feu `ufw`
+> est actif sur la VM, l'assistant y ouvre le port automatiquement.
 
 L'assistant **teste la connexion à MySQL** avant d'installer quoi que ce soit :
 
@@ -192,6 +199,8 @@ Ou dans le terminal :
 ```bash
 curl http://127.0.0.1/ready
 ```
+
+(Avec un autre port que 80 : `curl http://127.0.0.1:8080/ready`.)
 
 ✅ La réponse contient `"status":"READY"`.
 
@@ -239,6 +248,26 @@ Vos joueurs et leurs scores restent dans la base de données.
 
 ---
 
+## Désinstaller l'application
+
+```bash
+sudo /opt/gaming-quiz-battle/uninstall.sh
+```
+
+Après confirmation, le script retire de **cette VM** : le service `gaming-quiz`, le site Nginx
+et `/var/www/gaming-quiz`, la configuration `/etc/gaming-quiz` (qui contient le mot de passe
+MySQL), l'utilisateur `gamingquiz` et la règle `ufw` éventuelle. Une liste à cocher propose
+aussi de supprimer le dossier `/opt/gaming-quiz-battle`, les journaux, **Node.js** et **Nginx**
+(ces deux derniers sont décochés par défaut : ne les retirez que si rien d'autre ne les utilise).
+
+> 🗄️ **La base de données n'est pas touchée** : elle est sur la VM DATABASE et peut servir à
+> d'autres serveurs web. Pour la supprimer aussi, le script affiche la commande SQL à lancer.
+
+Sans question (scripts, tests) : `sudo /opt/gaming-quiz-battle/uninstall.sh --yes`
+(ajouter `--all` pour retirer aussi Node.js et Nginx).
+
+---
+
 ## Commandes utiles
 
 | Je veux… | Commande |
@@ -250,6 +279,8 @@ Vos joueurs et leurs scores restent dans la base de données.
 | La relancer | `sudo systemctl start gaming-quiz` |
 | Voir les visites reçues par Nginx | `sudo tail -f /var/log/nginx/access.log` |
 | Relancer l'assistant sans retélécharger | `sudo /opt/gaming-quiz-battle/setup.sh` |
+| Changer le port du site | Relancer l'assistant et répondre **Non** à « La garder ? » |
+| Désinstaller l'application | `sudo /opt/gaming-quiz-battle/uninstall.sh` (voir ci-dessous) |
 | Tester MySQL depuis la VM web | `mysql -h <IP_DB> -u quiz_app -p gaming_quiz` (le client est installé par l'assistant) |
 
 ---
@@ -277,12 +308,15 @@ Pour les curieux (et pour comprendre ce que vous dépannez) :
 | `install.sh` | Installe `git` si besoin, télécharge (ou met à jour) l'application dans `/opt/gaming-quiz-battle`, lance l'assistant `setup.sh` |
 | Prérequis | Vérifie Nginx (propose de l'installer), installe `curl`, `rsync` et le client `mysql` |
 | Questions | Nom du serveur et connexion MySQL, puis **test réel** : connexion, identifiants, base existante, droit de créer des tables |
-| 5 % | Installe Node.js 24 s'il est absent |
+| 5 % – 12 % | Installe Node.js 24 s'il est absent (ajout du dépôt NodeSource, puis du paquet) |
 | 20 % – 55 % | `npm ci` puis `npm run build` (compilation) |
 | 75 % | Crée l'utilisateur système `gamingquiz` et écrit la configuration dans `/etc/gaming-quiz/gaming-quiz.env` (lisible uniquement par root et `gamingquiz`) |
 | 80 % | Installe et démarre le service `/etc/systemd/system/gaming-quiz.service` |
-| 88 % | Copie le site dans `/var/www/gaming-quiz` et configure Nginx |
-| 95 % | Attend que `http://127.0.0.1/ready` réponde `200` |
+| 88 % | Copie le site dans `/var/www/gaming-quiz` et configure Nginx sur le port choisi (ouvre ce port dans `ufw` s'il est actif) |
+| 95 % | Attend que `http://127.0.0.1:<port>/ready` réponde `200` |
+
+Pendant chaque étape, la barre affiche le temps écoulé et la dernière ligne du journal
+`/var/log/gaming-quiz-setup.log` (on voit ainsi que l'installation avance, ou sur quoi elle attend).
 
 Au premier démarrage, l'application crée les tables et insère les 140 questions (message
 `database_initialized` dans `journalctl -u gaming-quiz`). Si plusieurs serveurs web démarrent

@@ -62,12 +62,13 @@ curl -fsSL https://raw.githubusercontent.com/emf-info-109/gaming-quizz-battle/ma
 ```
 
 `install.sh` télécharge l'application dans `/opt/gaming-quiz-battle` et lance l'assistant
-`setup.sh` (fenêtres `whiptail`) : nom du serveur, connexion MySQL **testée avant l'installation**,
+`setup.sh` (fenêtres `whiptail`) : nom du serveur, port du site (80 par défaut), connexion MySQL **testée avant l'installation**,
 puis installation de Node.js, compilation, service systemd et Nginx, avec barre de progression.
 Au premier démarrage, l'application crée les tables et insère les 140 questions
 (`AUTO_MIGRATE=true`). Relancer la même commande met l'application à jour en conservant la
 configuration. Mode texte : `sudo bash install.sh --text`. Ne pas utiliser `curl … | sudo bash` :
 l'assistant a besoin du clavier (dans ce cas, `install.sh` télécharge puis indique la commande à lancer).
+Désinstallation : `sudo /opt/gaming-quiz-battle/uninstall.sh` (la base MySQL n'est pas touchée).
 
 ```bash
 cp .env.example .env               # puis DB_PASSWORD=devpassword
@@ -122,6 +123,7 @@ gaming-quiz-battle/
 ├── docs/
 ├── install.sh               téléchargement de l'application + lancement de l'assistant
 ├── setup.sh                 assistant d'installation Ubuntu (questions, test MySQL, installation)
+├── uninstall.sh             désinstallation (service, Nginx, configuration ; base MySQL conservée)
 ├── docker-compose.yml       MySQL jetable pour le développement local
 └── .env.example
 ```
