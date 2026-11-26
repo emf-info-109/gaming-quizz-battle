@@ -24,11 +24,20 @@ import { loadPublicQuestion, type PublicQuestion } from './soloService.js';
 /** Une salle d'attente abandonnée expire après ce délai. */
 export const LOBBY_TTL_HOURS = 3;
 /**
- * Une salle n'apparaît dans la liste publique que si son organisateur a interrogé
- * la partie récemment (onglet ouvert). 90 s : les navigateurs ralentissent les
- * minuteries des onglets en arrière-plan jusqu'à une fois par minute.
+ * Présence dans une salle d'attente : chaque joueur interroge la partie toutes
+ * les 1 à 2 s. Sans nouvelle depuis ce délai, il est considéré comme parti :
+ *  - l'organisateur → la partie est annulée pour tout le monde ;
+ *  - un autre joueur → il est retiré de la salle.
+ * 90 s : les navigateurs ralentissent les minuteries des onglets en arrière-plan
+ * jusqu'à une fois par minute (le joueur reste donc présent s'il change d'onglet).
  */
-export const LOBBY_HOST_PRESENCE_SECONDS = 90;
+export const LOBBY_PRESENCE_SECONDS = 90;
+/**
+ * Fermeture de l'onglet (événement « pagehide ») : le joueur n'a plus que ce délai
+ * pour revenir. Assez court pour voir l'organisateur partir, assez long pour
+ * qu'un simple rechargement de la page n'annule pas la partie.
+ */
+export const AWAY_GRACE_SECONDS = 10;
 /** Nombre de messages renvoyés au premier chargement du chat. */
 export const CHAT_HISTORY_LIMIT = 50;
 
@@ -109,6 +118,70 @@ export async function finalizeElapsedGames(db: Queryable, gameId?: string): Prom
   );
 }
 
+/**
+ * Annule les salles d'attente dont l'organisateur ne donne plus signe de vie
+ * (onglet fermé, navigateur arrêté...). Idempotent, sans danger en parallèle
+ * sur plusieurs instances. Renvoie le nombre de salles annulées.
+ */
+export async function cancelAbandonedLobbies(db: Queryable, gameId?: string): Promise<number> {
+  const [res] = await db.execute<ResultSetHeader>(
+    `UPDATE games g
+       JOIN game_players host_gp ON host_gp.game_id = g.id AND host_gp.player_id = g.host_player_id
+        SET g.status = 'cancelled', g.finished_at = NOW(3)
+      WHERE g.mode = 'multi' AND g.status = 'lobby'
+        AND host_gp.last_seen_at < NOW(3) - INTERVAL ${LOBBY_PRESENCE_SECONDS} SECOND
+        ${gameId ? 'AND g.id = ?' : ''}`,
+    gameId ? [gameId] : [],
+  );
+  return res.affectedRows;
+}
+
+/** Retire de la salle les joueurs (hors organisateur) qui ne donnent plus signe de vie. */
+async function pruneAbsentPlayers(db: Queryable, gameId: string, hostId: string): Promise<void> {
+  const [rows] = await db.execute<RowDataPacket[]>(
+    `SELECT gp.player_id, p.pseudo FROM game_players gp JOIN players p ON p.id = gp.player_id
+      WHERE gp.game_id = ? AND gp.player_id <> ?
+        AND gp.last_seen_at < NOW(3) - INTERVAL ${LOBBY_PRESENCE_SECONDS} SECOND`,
+    [gameId, hostId],
+  );
+  for (const r of rows) {
+    // La condition est répétée : si deux instances font le ménage en même temps,
+    // une seule supprime le joueur (et une seule annonce son départ).
+    const [res] = await db.execute<ResultSetHeader>(
+      `DELETE FROM game_players WHERE game_id = ? AND player_id = ?
+          AND last_seen_at < NOW(3) - INTERVAL ${LOBBY_PRESENCE_SECONDS} SECOND`,
+      [gameId, r.player_id],
+    );
+    if (res.affectedRows === 1) await addSystemMessage(db, gameId, `${r.pseudo} a quitté la salle`);
+  }
+}
+
+/**
+ * Un joueur n'est que dans UNE salle d'attente à la fois. Quand il en crée ou en
+ * rejoint une autre :
+ *  - les salles qu'il organise sont annulées pour tous les joueurs ;
+ *  - il est retiré des salles des autres organisateurs (avec une annonce).
+ */
+async function leaveOtherLobbies(conn: Queryable, player: AuthPlayer, exceptGameId: string): Promise<void> {
+  await conn.execute(
+    `UPDATE games SET status = 'cancelled', finished_at = NOW(3)
+      WHERE mode = 'multi' AND status = 'lobby' AND host_player_id = ? AND id <> ?`,
+    [player.id, exceptGameId],
+  );
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT g.id FROM game_players gp JOIN games g ON g.id = gp.game_id
+      WHERE gp.player_id = ? AND g.mode = 'multi' AND g.status = 'lobby' AND g.host_player_id <> ? AND g.id <> ?`,
+    [player.id, player.id, exceptGameId],
+  );
+  for (const r of rows) {
+    const [res] = await conn.execute<ResultSetHeader>('DELETE FROM game_players WHERE game_id = ? AND player_id = ?', [
+      r.id,
+      player.id,
+    ]);
+    if (res.affectedRows === 1) await addSystemMessage(conn, r.id, `${player.pseudo} a quitté la salle`);
+  }
+}
+
 // -----------------------------------------------------------------------------
 //  Création / salle d'attente
 // -----------------------------------------------------------------------------
@@ -139,6 +212,8 @@ export async function createMultiGame(
     const code = generateGameCode();
     try {
       await withTransaction(pool, async (conn) => {
+        // Une seule salle à la fois : créer une partie fait quitter (ou annule) la précédente.
+        await leaveOtherLobbies(conn, host, gameId);
         await conn.execute(
           `INSERT INTO games (id, code, name, is_public, mode, host_player_id, category_id, status, question_count,
                               question_duration_ms, reveal_duration_ms, countdown_ms, max_players)
@@ -186,6 +261,10 @@ export async function joinMultiGame(pool: Pool, player: AuthPlayer, code: string
     if (game.status === 'cancelled') throw conflict('GAME_CANCELLED', 'Cette partie a été annulée.');
     if (game.status !== 'lobby') throw conflict('GAME_ALREADY_STARTED', 'La partie a déjà commencé.');
     if (Number(game.lobby_expired)) throw conflict('GAME_EXPIRED', 'Cette salle d’attente a expiré.');
+    if ((await cancelAbandonedLobbies(conn, game.id)) > 0) {
+      throw conflict('GAME_CANCELLED', 'Cette partie a été annulée : l’organisateur a quitté la salle.');
+    }
+    await pruneAbsentPlayers(conn, game.id, game.host_player_id);
 
     const [countRows] = await conn.execute<RowDataPacket[]>(
       'SELECT COUNT(*) AS n FROM game_players WHERE game_id = ?',
@@ -194,6 +273,8 @@ export async function joinMultiGame(pool: Pool, player: AuthPlayer, code: string
     if (Number(countRows[0]?.n ?? 0) >= game.max_players) {
       throw conflict('GAME_FULL', `La partie est complète (${game.max_players} joueurs maximum).`);
     }
+    // Une seule salle à la fois : rejoindre celle-ci fait quitter (ou annule) les autres.
+    await leaveOtherLobbies(conn, player, game.id);
     await conn.execute('INSERT INTO game_players (game_id, player_id) VALUES (?, ?)', [game.id, player.id]);
     await addSystemMessage(conn, game.id, `${player.pseudo} a rejoint la salle`);
     return { code: game.code, alreadyJoined: false };
@@ -297,7 +378,6 @@ export async function getMultiGameState(
   if (!(await isParticipant(pool, game.id, player.id))) {
     throw forbidden('NOT_IN_GAME', 'Tu ne participes pas à cette partie. Rejoins-la avec son code.');
   }
-  let clock = clockOf(game);
 
   let messages: ChatMessage[] = [];
   if (game.status === 'lobby') {
@@ -307,8 +387,15 @@ export async function getMultiGameState(
         WHERE game_id = ? AND player_id = ? AND last_seen_at < NOW(3) - INTERVAL 5 SECOND`,
       [game.id, player.id],
     );
-    messages = await loadMessages(pool, game.id, afterMessageId);
+    // L'organisateur est parti sans annuler : la partie est annulée pour tous.
+    if (game.host_player_id !== player.id && (await cancelAbandonedLobbies(pool, game.id)) > 0) {
+      game = await loadGameByCode(pool, code);
+    } else {
+      await pruneAbsentPlayers(pool, game.id, game.host_player_id);
+      messages = await loadMessages(pool, game.id, afterMessageId);
+    }
   }
+  let clock = clockOf(game);
 
   // La partie est terminée selon l'horloge mais pas encore en base : on persiste.
   if (clock.phase === 'finished' && game.status === 'in_progress') {
@@ -568,6 +655,7 @@ export interface OpenGame {
  * visibles (affichées « complète »).
  */
 export async function listOpenGames(pool: Pool, player: AuthPlayer): Promise<OpenGame[]> {
+  await cancelAbandonedLobbies(pool);
   const [rows] = await pool.execute<RowDataPacket[]>(
     `SELECT g.code, COALESCE(g.name, CONCAT('Partie de ', hp.pseudo)) AS name, g.max_players, g.question_count,
             g.created_at, c.name AS category_name, c.slug AS category_slug,
@@ -581,7 +669,7 @@ export async function listOpenGames(pool: Pool, player: AuthPlayer): Promise<Ope
        LEFT JOIN categories c ON c.id = g.category_id
       WHERE g.mode = 'multi' AND g.status = 'lobby' AND g.is_public
         AND g.created_at >= NOW(3) - INTERVAL ${LOBBY_TTL_HOURS} HOUR
-        AND host_gp.last_seen_at >= NOW(3) - INTERVAL ${LOBBY_HOST_PRESENCE_SECONDS} SECOND
+        AND host_gp.last_seen_at >= NOW(3) - INTERVAL ${LOBBY_PRESENCE_SECONDS} SECOND
       GROUP BY g.id, g.code, g.name, g.max_players, g.question_count, g.created_at,
                c.name, c.slug, hp.pseudo, hp.avatar
       ORDER BY g.created_at DESC
@@ -600,4 +688,21 @@ export async function listOpenGames(pool: Pool, player: AuthPlayer): Promise<Ope
     joined: Number(r.joined) > 0,
     createdAt: new Date(r.created_at).toISOString(),
   }));
+}
+
+/**
+ * Le joueur ferme l'onglet (« pagehide ») : il n'a plus que AWAY_GRACE_SECONDS pour
+ * revenir. S'il recharge simplement la page, sa prochaine requête le rend présent.
+ */
+export async function markAway(pool: Pool, player: AuthPlayer, code: string) {
+  const game = await loadGameByCode(pool, code);
+  if (game.status === 'lobby') {
+    await pool.execute(
+      `UPDATE game_players
+          SET last_seen_at = LEAST(last_seen_at, NOW(3) - INTERVAL ${LOBBY_PRESENCE_SECONDS - AWAY_GRACE_SECONDS} SECOND)
+        WHERE game_id = ? AND player_id = ?`,
+      [game.id, player.id],
+    );
+  }
+  return { away: true };
 }

@@ -15,6 +15,7 @@ import {
   joinMultiGame,
   leaveMultiGame,
   listOpenGames,
+  markAway,
   postChatMessage,
   startMultiGame,
   submitMultiAnswer,
@@ -44,6 +45,12 @@ export function multiplayerRouter({ pool, config, limiters }: AppDeps): Router {
     const code = gameCodeSchema.parse(req.params.code);
     const { afterMessageId } = gameStateQuerySchema.parse(req.query);
     res.json(await getMultiGameState(pool, req.player!, code, afterMessageId));
+  });
+
+  /** Envoyé par le navigateur à la fermeture de l'onglet (fetch keepalive) */
+  router.post('/:code/away', async (req, res) => {
+    const code = gameCodeSchema.parse(req.params.code);
+    res.json(await markAway(pool, req.player!, code));
   });
 
   router.post('/:code/messages', limiters.chat, async (req, res) => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useBlocker, useNavigate, useParams } from 'react-router';
 import { AnswerGrid } from '../components/AnswerGrid';
 import { CategoryLogo } from '../components/CategoryLogo';
 import { Avatar } from '../components/Avatar';
@@ -20,6 +20,8 @@ import type { ChatMessage, MultiGameState, PlayerStanding } from '../lib/types';
  */
 const POLL_LOBBY_MS = 1500;
 const POLL_GAME_MS = 1000;
+const HOST_LEAVE_CONFIRM =
+  'Tu es l’organisateur : si tu quittes la salle d’attente, la partie est annulée pour tous les joueurs.\n\nQuitter quand même ?';
 
 export function MultiGamePage() {
   const { code = '' } = useParams();
@@ -132,7 +134,18 @@ export function MultiGamePage() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  //  Quitter la salle d'attente = la quitter pour de bon (et l'annuler si on est
+  //  l'organisateur). Le serveur le détecte aussi tout seul si l'onglet disparaît.
+  // ---------------------------------------------------------------------------
+  const inLobby = game?.phase === 'lobby';
+  const isHost = Boolean(game?.isHost);
+  /** true pendant un départ volontaire : on ne bloque plus la navigation. */
+  const leaving = useRef(false);
+
   const leave = async () => {
+    if (isHost && !window.confirm(HOST_LEAVE_CONFIRM)) return;
+    leaving.current = true;
     try {
       await api.leaveMulti(code);
     } catch {
@@ -140,6 +153,43 @@ export function MultiGamePage() {
     }
     navigate('/');
   };
+
+  // Navigation dans l'application (menu, logo, bouton retour) depuis la salle.
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      inLobby && !leaving.current && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    if (isHost && !window.confirm(HOST_LEAVE_CONFIRM)) {
+      blocker.reset();
+      return;
+    }
+    leaving.current = true;
+    void api
+      .leaveMulti(code)
+      .catch(() => undefined)
+      .finally(() => blocker.proceed());
+  }, [blocker, isHost, code]);
+
+  // Fermeture ou rechargement de l'onglet.
+  useEffect(() => {
+    if (!inLobby) return;
+    // Le serveur laisse quelques secondes pour revenir (un rechargement n'annule rien).
+    const onPageHide = () => {
+      if (!leaving.current) api.markAway(code);
+    };
+    // L'organisateur est prévenu par le navigateur avant de fermer l'onglet.
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isHost && !leaving.current) e.preventDefault();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [inLobby, isHost, code]);
 
   const left = useCountdown(game?.phaseRemainingMs ?? 0, syncKey, Boolean(game));
 
@@ -351,9 +401,15 @@ function Lobby({
         <LobbyChat code={game.code} messages={messages} meId={meId} onSent={onMessageSent} />
       </div>
 
+      {game.isHost && (
+        <p className="text-center text-sm text-neon-amber/90 sm:text-right">
+          ⚠️ Garde cette page ouverte : si tu la quittes, la partie est annulée pour tous les joueurs.
+        </p>
+      )}
+
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
         <Button variant="ghost" onClick={onLeave}>
-          {game.isHost ? 'Annuler la partie' : 'Quitter'}
+          {game.isHost ? 'Annuler la partie' : 'Quitter la salle'}
         </Button>
         {game.isHost ? (
           <Button size="lg" onClick={onStart} loading={starting} className="animate-pulse-glow">

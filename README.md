@@ -169,7 +169,8 @@ Toutes les routes `/api` répondent en JSON. Les routes marquées 🔒 exigent l
 | POST | `/api/games/:code/messages` 🔒 | Écrire dans le chat de la salle d'attente `{text}` (20 messages/min par joueur) |
 | POST | `/api/games/:code/start` 🔒 | Démarrer (organisateur) |
 | POST | `/api/games/:code/answers` 🔒 | Répondre `{position, choice}` |
-| POST | `/api/games/:code/leave` 🔒 | Quitter la salle d'attente |
+| POST | `/api/games/:code/leave` 🔒 | Quitter la salle d'attente (l'organisateur l'annule pour tous) |
+| POST | `/api/games/:code/away` 🔒 | Onglet fermé : 10 s pour revenir, sinon départ (annulation si organisateur) |
 
 ## Limitations connues
 

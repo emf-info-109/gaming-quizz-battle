@@ -36,6 +36,8 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH';
   body?: unknown;
   signal?: AbortSignal;
+  /** La requête part même si la page se ferme (fermeture d'onglet). */
+  keepalive?: boolean;
 }
 
 export interface ApiResponse<T> {
@@ -59,6 +61,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       headers,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       signal: options.signal,
+      keepalive: options.keepalive,
       cache: 'no-store',
     });
   } catch (err) {
@@ -123,6 +126,10 @@ export const api = {
       `/api/games/${code}${afterMessageId !== undefined ? `?afterMessageId=${afterMessageId}` : ''}`,
       signal,
     ),
+  /** Envoyé à la fermeture de l'onglet : « je pars » (le serveur laisse quelques secondes pour revenir). */
+  markAway: (code: string) => {
+    void apiRequest(`/api/games/${code}/away`, { method: 'POST', body: {}, keepalive: true }).catch(() => undefined);
+  },
   sendChat: (code: string, text: string) => post<{ id: number }>(`/api/games/${code}/messages`, { text }),
   startMulti: (code: string) => post<{ started: boolean }>(`/api/games/${code}/start`),
   leaveMulti: (code: string) => post<{ left: boolean }>(`/api/games/${code}/leave`),

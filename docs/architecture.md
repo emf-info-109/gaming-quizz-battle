@@ -127,9 +127,23 @@ Les messages sont stockés dans `game_messages` et arrivent avec le polling de l
 peu importe que WEB-01 reçoive le message et que WEB-02 le distribue.
 
 La liste « Parties en attente » (`GET /api/games`) ne montre que les salles publiques, non
-lancées, de moins de 3 h, **dont l'organisateur a interrogé la partie dans les 90 dernières
-secondes** (`game_players.last_seen_at`, mis à jour au plus toutes les 5 s pendant le polling) :
-une salle abandonnée (onglet fermé sans « Annuler ») disparaît donc d'elle-même de la liste.
+lancées, de moins de 3 h, dont l'organisateur est présent.
+
+**Présence et départs.** Chaque requête de polling met à jour `game_players.last_seen_at`
+(au plus toutes les 5 s). Un joueur silencieux depuis **90 s** est considéré comme parti :
+
+| Qui part | Comment c'est détecté | Effet |
+|---|---|---|
+| L'organisateur | Bouton « Annuler la partie », navigation dans l'app (confirmation), fermeture de l'onglet (`pagehide` → `POST /away` : il n'a plus que **10 s** pour revenir, un simple rechargement n'annule donc rien), ou 90 s sans nouvelle | La partie est **annulée pour tous** |
+| Un autre joueur | Bouton « Quitter la salle », navigation dans l'app, fermeture de l'onglet, ou 90 s sans nouvelle | Il est retiré de la salle (annonce dans le chat) |
+
+**Une salle à la fois** : créer ou rejoindre une partie annule les salles que le joueur
+organise et le retire des autres salles d'attente.
+
+Aucune minuterie côté serveur : ces règles sont appliquées « à la volée » par la requête
+suivante (polling d'un autre joueur, liste des parties, tentative de rejoindre), avec des
+`UPDATE`/`DELETE` conditionnels qui restent corrects si WEB-01 et WEB-02 les exécutent en
+même temps.
 
 **Initialisation automatique** (`AUTO_MIGRATE=true`, par défaut) : au démarrage, l'API applique
 les migrations manquantes puis les seeds nouveaux ou modifiés (empreintes SHA-256 enregistrées
