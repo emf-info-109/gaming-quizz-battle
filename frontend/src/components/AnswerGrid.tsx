@@ -1,12 +1,12 @@
 import { ANSWER_LETTERS } from '../lib/format';
+import { CheckIcon, XIcon } from './Icons';
 
-const TILE_COLORS = [
-  'from-neon-blue/25 to-neon-blue/5 border-neon-blue/50 hover:border-neon-blue',
-  'from-neon-violet/25 to-neon-violet/5 border-neon-violet/50 hover:border-neon-violet',
-  'from-neon-cyan/25 to-neon-cyan/5 border-neon-cyan/50 hover:border-neon-cyan',
-  'from-neon-pink/25 to-neon-pink/5 border-neon-pink/50 hover:border-neon-pink',
-];
-const LETTER_COLORS = ['bg-neon-blue', 'bg-neon-violet', 'bg-neon-cyan text-ink-950', 'bg-neon-pink'];
+/**
+ * Les quatre réponses : c'est le « moment » de l'écran, là où vit la couleur.
+ * Chaque réponse garde sa couleur (lettre A/B/C/D en coin coupé) ; la tuile reste neutre.
+ */
+const LETTER_COLORS = ['bg-neon-blue text-white', 'bg-neon-violet text-white', 'bg-neon-cyan text-ink-950', 'bg-neon-pink text-white'];
+const HOVER_BORDERS = ['enabled:hover:border-neon-blue/60', 'enabled:hover:border-neon-violet/60', 'enabled:hover:border-neon-cyan/60', 'enabled:hover:border-neon-pink/60'];
 
 interface AnswerGridProps {
   answers: readonly string[];
@@ -30,15 +30,15 @@ export function AnswerGrid({ answers, onSelect, selected = null, correctIndex = 
         const isSelected = selected === i;
         const isCorrect = revealed && i === correctIndex;
         const isWrongPick = revealed && isSelected && !isCorrect;
-        let state = `bg-gradient-to-br ${TILE_COLORS[i]}`;
+        let state = `border-white/[0.08] bg-ink-850 enabled:hover:bg-ink-800 ${HOVER_BORDERS[i]}`;
         if (revealed) {
-          if (isCorrect) state = 'border-neon-green bg-neon-green/15 shadow-[0_0_24px_-6px] shadow-neon-green';
-          else if (isWrongPick) state = 'border-neon-red bg-neon-red/15';
-          else state = 'border-white/5 bg-ink-800/60 opacity-60';
+          if (isCorrect) state = 'border-neon-green/70 bg-neon-green/[0.08]';
+          else if (isWrongPick) state = 'border-neon-red/70 bg-neon-red/[0.08]';
+          else state = 'border-white/[0.06] bg-ink-850 opacity-50';
         } else if (isSelected) {
-          state = 'border-neon-cyan bg-neon-cyan/15 ring-2 ring-neon-cyan/60';
+          state = 'border-neon-cyan bg-ink-800';
         } else if (selected !== null) {
-          state = 'border-white/5 bg-ink-800/60 opacity-50';
+          state = 'border-white/[0.06] bg-ink-850 opacity-50';
         }
         const votes = distribution?.[i] ?? 0;
         return (
@@ -47,25 +47,33 @@ export function AnswerGrid({ answers, onSelect, selected = null, correctIndex = 
             type="button"
             disabled={disabled || revealed || !onSelect}
             onClick={() => onSelect?.(i)}
-            className={`group relative flex min-h-16 items-center gap-3 overflow-hidden rounded-md border-2 px-4 py-3 text-left transition duration-200 enabled:hover:-translate-y-0.5 enabled:active:scale-[0.98] disabled:cursor-default ${state}`}
+            className={`relative flex min-h-16 items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left transition-[background-color,border-color,opacity,transform] duration-150 ease-out-soft enabled:active:scale-[0.98] disabled:cursor-default ${state}`}
           >
             {distribution && totalVotes > 0 && (
               <span
-                className="absolute inset-y-0 left-0 bg-white/5 transition-[width] duration-700"
+                className="absolute inset-y-0 left-0 bg-white/[0.04] transition-[width] duration-500 ease-out-soft"
                 style={{ width: `${(votes / totalVotes) * 100}%` }}
                 aria-hidden="true"
               />
             )}
             <span
-              className={`chamfer-sm relative flex h-9 w-9 shrink-0 items-center justify-center font-display text-lg font-bold text-white ${LETTER_COLORS[i]}`}
+              className={`chamfer-sm relative flex h-10 w-10 shrink-0 items-center justify-center font-display text-lg font-semibold ${LETTER_COLORS[i]}`}
             >
               {ANSWER_LETTERS[i]}
             </span>
-            <span className="relative flex-1 font-medium leading-snug">{answer}</span>
-            {revealed && isCorrect && <span className="relative text-xl" aria-label="Bonne réponse">✅</span>}
-            {revealed && isWrongPick && <span className="relative text-xl" aria-label="Mauvaise réponse">❌</span>}
+            <span className="relative flex-1 font-medium leading-snug text-slate-100">{answer}</span>
+            {revealed && isCorrect && (
+              <span className="relative text-neon-green" aria-label="Bonne réponse">
+                <CheckIcon className="h-5 w-5" />
+              </span>
+            )}
+            {revealed && isWrongPick && (
+              <span className="relative text-neon-red" aria-label="Mauvaise réponse">
+                <XIcon className="h-5 w-5" />
+              </span>
+            )}
             {distribution && (
-              <span className="relative ml-1 rounded-md bg-black/30 px-2 py-0.5 text-xs tabular-nums text-slate-300">
+              <span className="relative w-6 shrink-0 text-right text-sm tabular-nums text-slate-400" title="Joueurs ayant choisi cette réponse">
                 {votes}
               </span>
             )}

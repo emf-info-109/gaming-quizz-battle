@@ -5,25 +5,23 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 /**
- * Boutons façon launcher : capitales condensées, coins coupés.
- * primary = action principale (cyan plein, texte sombre) ; secondary = contour.
+ * primary = action principale : cyan plein, texte sombre, coin coupé (la signature).
+ * secondary = surface relevée avec un filet ; ghost = texte seul ; danger = rouge discret.
  */
 const VARIANTS: Record<Variant, string> = {
-  primary:
-    'chamfer bg-gradient-to-r from-neon-cyan to-[#4fb8ff] text-ink-950 shadow-[0_0_28px_-6px] shadow-neon-cyan/60 hover:brightness-110 hover:shadow-neon-cyan',
-  secondary:
-    'chamfer bg-white/[0.06] text-slate-100 ring-1 ring-inset ring-white/15 hover:bg-neon-cyan/10 hover:text-neon-cyan hover:ring-neon-cyan/60',
-  ghost: 'rounded-md text-slate-400 hover:bg-white/5 hover:text-white',
-  danger: 'chamfer bg-neon-red/15 text-neon-red ring-1 ring-inset ring-neon-red/40 hover:bg-neon-red/25',
+  primary: 'chamfer bg-neon-cyan text-ink-950 hover:bg-neon-cyan-hover',
+  secondary: 'rounded-lg bg-ink-800 text-slate-100 ring-1 ring-inset ring-white/10 hover:bg-ink-700',
+  ghost: 'rounded-lg text-slate-400 hover:bg-white/5 hover:text-slate-100',
+  danger: 'rounded-lg bg-neon-red/10 text-neon-red ring-1 ring-inset ring-neon-red/30 hover:bg-neon-red/15',
 };
 const SIZES: Record<Size, string> = {
-  sm: 'px-3.5 py-1.5 text-sm tracking-[0.12em]',
-  md: 'px-6 py-2.5 text-base tracking-[0.14em]',
-  lg: 'px-8 py-3.5 text-lg tracking-[0.16em] sm:text-xl',
+  sm: 'h-8 px-3 text-sm',
+  md: 'h-10 px-5 text-base',
+  lg: 'h-12 px-6 text-lg',
 };
 
 export function buttonClass(variant: Variant = 'primary', size: Size = 'md', extra = '') {
-  return `inline-flex items-center justify-center gap-2 font-display font-bold uppercase leading-none transition duration-200 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 ${VARIANTS[variant]} ${SIZES[size]} ${extra}`;
+  return `inline-flex items-center justify-center gap-2 font-display font-semibold leading-none tracking-wide transition-[color,background-color,transform] duration-150 ease-out-soft active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 ${VARIANTS[variant]} ${SIZES[size]} ${extra}`;
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar';
 import { Button, LinkButton } from '../components/Button';
 import { CategoryLogo } from '../components/CategoryLogo';
 import { Alert, PageTitle, Spinner } from '../components/Feedback';
+import { UsersIcon } from '../components/Icons';
 import { api, errorMessage } from '../lib/api';
 import type { OpenGame } from '../lib/types';
 
@@ -47,7 +48,7 @@ export function JoinGamePage() {
         </label>
         <input
           id="code"
-          className="input min-w-0 flex-1 text-center font-display text-2xl font-bold uppercase tracking-[0.35em] sm:text-left"
+          className="input min-w-0 flex-1 text-center font-display text-2xl font-semibold uppercase tracking-[0.3em] sm:text-left"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase().replace(ALLOWED, '').slice(0, 6))}
           placeholder="ABC234"
@@ -57,8 +58,8 @@ export function JoinGamePage() {
           inputMode="text"
           aria-label="Code de la partie"
         />
-        <Button type="submit" size="lg" loading={joining === code && code.length === 6} disabled={code.length !== 6 || Boolean(joining)}>
-          Rejoindre 🚀
+        <Button type="submit" size="lg" loading={joining === code && code.length === 6} disabled={code.length !== 6 || Boolean(joining)} aria-label="Rejoindre avec ce code">
+          Rejoindre
         </Button>
       </form>
 
@@ -115,23 +116,22 @@ function OpenGamesList({ onJoin, joining }: { onJoin: (code: string) => void; jo
   return (
     <section aria-labelledby="open-games-title">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 id="open-games-title" className="font-display text-lg font-bold uppercase tracking-wide">
+        <h2 id="open-games-title" className="font-display text-2xl font-semibold text-white">
           Parties en attente
         </h2>
         <span className="flex items-center gap-2 text-xs text-slate-500">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-neon-green" aria-hidden="true" />
-          en direct
+          <span className="h-1.5 w-1.5 rounded-full bg-neon-green" aria-hidden="true" />
+          Mise à jour toutes les 4 s
         </span>
       </div>
 
-      {failed && !games && <Alert>Impossible de charger la liste des parties. Nouvelle tentative…</Alert>}
+      {failed && !games && <Alert>Impossible de charger la liste des parties, nouvelle tentative en cours.</Alert>}
       {!failed && !games && <Spinner label="Recherche des parties…" />}
       {games && games.length === 0 && (
         <div className="card flex flex-col items-center gap-4 p-8 text-center">
-          <p className="text-4xl" aria-hidden="true">🛋️</p>
-          <p className="text-slate-300">Aucune partie publique n’attend de joueurs pour l’instant.</p>
+          <p className="text-slate-300">Aucune partie publique n’attend de joueurs pour l’instant</p>
           <LinkButton to="/multi/create" variant="secondary">
-            ⚔️ Créer la mienne
+            Créer la mienne
           </LinkButton>
         </div>
       )}
@@ -140,10 +140,10 @@ function OpenGamesList({ onJoin, joining }: { onJoin: (code: string) => void; jo
           {games.map((g) => {
             const full = g.playerCount >= g.maxPlayers && !g.joined;
             return (
-              <li key={g.code} className="card flex animate-fade-up items-center gap-3 p-3 sm:gap-4 sm:p-4">
+              <li key={g.code} className="card flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
                 <CategoryLogo slug={g.categorySlug} name={g.category} size="md" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-white" title={g.name}>
+                  <p className="truncate font-medium text-white" title={g.name}>
                     {g.name}
                   </p>
                   <p className="truncate text-xs text-slate-400">
@@ -156,12 +156,10 @@ function OpenGamesList({ onJoin, joining }: { onJoin: (code: string) => void; jo
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
-                      full ? 'bg-neon-red/15 text-neon-red' : 'bg-white/5 text-slate-300'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 text-sm tabular-nums ${full ? 'text-neon-red' : 'text-slate-400'}`}
                     title="Joueurs dans la salle"
                   >
-                    👥 {g.playerCount}/{g.maxPlayers}
+                    <UsersIcon /> {g.playerCount}/{g.maxPlayers}
                   </span>
                   <Button
                     size="sm"

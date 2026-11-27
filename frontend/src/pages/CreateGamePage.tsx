@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CategoryGrid } from '../components/CategoryGrid';
 import { Alert, PageTitle, Spinner } from '../components/Feedback';
+import { GlobeIcon, LockIcon } from '../components/Icons';
 import { usePlayer } from '../hooks/PlayerContext';
 import { useAsync } from '../hooks/useAsync';
 import { api, errorMessage } from '../lib/api';
@@ -64,10 +65,10 @@ export function CreateGamePage() {
 
         <fieldset className="sm:mb-6">
           <legend className="mb-2 text-sm font-medium text-slate-300">Visibilité</legend>
-          <div className="inline-flex w-full rounded-md border border-white/10 bg-ink-900 p-1 sm:w-auto" role="radiogroup">
+          <div className="inline-flex w-full rounded-xl border border-white/10 bg-ink-950 p-1 sm:w-auto" role="radiogroup">
             {[
-              { value: true, label: '🌍 Publique', hint: 'Visible dans la liste' },
-              { value: false, label: '🔒 Privée', hint: 'Avec le code uniquement' },
+              { value: true, label: 'Publique', Icon: GlobeIcon, hint: 'Visible dans la liste' },
+              { value: false, label: 'Privée', Icon: LockIcon, hint: 'Avec le code uniquement' },
             ].map((o) => (
               <button
                 key={o.label}
@@ -76,10 +77,11 @@ export function CreateGamePage() {
                 aria-checked={isPublic === o.value}
                 onClick={() => setIsPublic(o.value)}
                 title={o.hint}
-                className={`flex-1 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition sm:flex-none ${
-                  isPublic === o.value ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'
+                className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
+                  isPublic === o.value ? 'bg-ink-700 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
+                <o.Icon />
                 {o.label}
               </button>
             ))}
@@ -92,9 +94,7 @@ export function CreateGamePage() {
         </p>
       </section>
 
-      <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-wide text-slate-300">
-        Choisis la catégorie pour créer la salle
-      </h2>
+      <h2 className="mb-4 font-display text-2xl font-semibold text-white">Choisis la catégorie pour créer la salle</h2>
       {error && (
         <div className="mb-4">
           <Alert>{error}</Alert>

@@ -5,6 +5,7 @@ import { CategoryLogo } from '../components/CategoryLogo';
 import { Avatar } from '../components/Avatar';
 import { Button, LinkButton } from '../components/Button';
 import { Alert, Spinner } from '../components/Feedback';
+import { AlertIcon, CheckIcon, ClockIcon, GlobeIcon, LinkIcon, LockIcon, SendIcon, XIcon } from '../components/Icons';
 import { TimerBar } from '../components/TimerBar';
 import { usePlayer } from '../hooks/PlayerContext';
 import { useCountdown } from '../hooks/useCountdown';
@@ -234,11 +235,11 @@ export function MultiGamePage() {
 
       {game.phase === 'countdown' && (
         <div className="flex flex-col items-center py-16 text-center">
-          <p className="mb-3 max-w-full truncate px-4 text-lg font-semibold text-white">{game.name}</p>
-          <p className="flex items-center gap-3 font-display text-sm uppercase tracking-[0.3em] text-slate-400">
+          <p className="mb-3 max-w-full truncate px-4 text-lg font-medium text-white">{game.name}</p>
+          <p className="flex items-center gap-2 text-sm text-slate-400">
             <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" /> {game.category}
           </p>
-          <p key={Math.ceil(left / 1000)} className="mt-6 animate-pop font-display text-8xl font-black text-gradient sm:text-9xl">
+          <p key={Math.ceil(left / 1000)} className="mt-8 animate-pop font-display text-9xl font-semibold leading-none tabular-nums text-neon-cyan">
             {Math.max(1, Math.ceil(left / 1000))}
           </p>
           <p className="mt-6 text-slate-400">Prépare-toi…</p>
@@ -249,25 +250,23 @@ export function MultiGamePage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="mb-4 flex items-center justify-between gap-3 text-sm">
-              <span className="font-display uppercase tracking-wider text-slate-400 sm:tracking-widest">
-                Question <span className="text-white">{game.questionIndex + 1}</span>/{game.questionCount}
+              <span className="tabular-nums text-slate-400">
+                Question <span className="font-medium text-white">{game.questionIndex + 1}</span>/{game.questionCount}
               </span>
               <span className="text-right text-slate-400">
                 {game.answeredCount}/{game.players.length} ont répondu
               </span>
             </div>
-            <div key={game.questionIndex} className="card animate-pop p-5 sm:p-7">
-              <div className="mb-4 flex flex-wrap gap-2 text-xs">
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-md py-0.5 pl-0.5 pr-2 font-semibold"
-                  style={{ background: `${game.question.category.color}22`, color: game.question.category.color }}
-                >
-                  <CategoryLogo slug={game.question.category.slug} name={game.question.category.name} size="xs" />{' '}
+            <div key={game.questionIndex} className="card animate-pop p-5 sm:p-8">
+              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
+                <span className="inline-flex items-center gap-2">
+                  <CategoryLogo slug={game.question.category.slug} name={game.question.category.name} size="xs" />
                   {game.question.category.name}
                 </span>
-                <span className="rounded-md bg-white/5 px-2 py-1 text-slate-400">{difficultyLabel[game.question.difficulty]}</span>
+                <span aria-hidden="true">·</span>
+                <span>{difficultyLabel[game.question.difficulty]}</span>
               </div>
-              <h2 className="mb-6 text-xl font-bold leading-snug sm:text-2xl">{game.question.prompt}</h2>
+              <h2 className="mb-6 text-2xl font-semibold leading-tight text-white sm:text-3xl">{game.question.prompt}</h2>
 
               {game.phase === 'question' ? (
                 <>
@@ -281,7 +280,7 @@ export function MultiGamePage() {
                     disabled={myChoice !== null || left <= 0}
                   />
                   <p className="mt-4 h-5 text-center text-sm text-slate-400">
-                    {myChoice !== null ? '✓ Réponse enregistrée — attends la fin du chrono !' : left <= 0 ? 'Temps écoulé…' : ''}
+                    {myChoice !== null ? 'Réponse enregistrée, attends la fin du chrono' : left <= 0 ? 'Temps écoulé' : ''}
                   </p>
                 </>
               ) : (
@@ -295,7 +294,7 @@ export function MultiGamePage() {
                   />
                   <p className="mt-4 text-center text-sm text-slate-400">
                     {game.questionIndex + 1 < game.questionCount ? 'Question suivante' : 'Résultats'} dans{' '}
-                    <span className="font-display text-neon-cyan">{Math.ceil(left / 1000)}</span> s
+                    <span className="tabular-nums text-white">{Math.ceil(left / 1000)}</span> s
                   </p>
                 </>
               )}
@@ -309,8 +308,7 @@ export function MultiGamePage() {
 
       {game.phase === 'cancelled' && (
         <div className="card mx-auto max-w-md p-8 text-center">
-          <p className="text-4xl">🚪</p>
-          <h2 className="mt-3 font-display text-xl font-bold">Partie annulée</h2>
+          <h2 className="font-display text-3xl font-semibold text-white">Partie annulée</h2>
           <p className="mt-2 text-slate-400">L’organisateur a quitté la salle d’attente.</p>
           <LinkButton to="/" className="mt-6">Retour à l’accueil</LinkButton>
         </div>
@@ -350,29 +348,34 @@ function Lobby({
 
   return (
     <div className="space-y-6">
-      <div className="card relative overflow-hidden p-5 text-center sm:p-8">
-        <span className="absolute inset-0 bg-gradient-to-br from-neon-blue/15 via-transparent to-neon-violet/15" aria-hidden="true" />
-        <p className="relative font-display text-xs uppercase tracking-[0.3em] text-neon-cyan">Salle d’attente</p>
-        <h1 className="relative mt-2 break-words font-display text-2xl font-bold sm:text-3xl">{game.name}</h1>
-        <p className="relative mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-400">
+      <div className="card p-5 text-center sm:p-8">
+        <p className="text-sm text-slate-400">Salle d’attente</p>
+        <h1 className="mt-2 break-words font-display text-3xl font-semibold text-white sm:text-4xl">{game.name}</h1>
+        <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-slate-400">
           <CategoryLogo slug={game.categorySlug} name={game.category} size="sm" />
           {game.category} · {game.questionCount} questions · {game.questionDurationMs / 1000} s par question
-          <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-slate-300">
-            {game.isPublic ? '🌍 Publique' : '🔒 Privée'}
+          <span className="inline-flex items-center gap-1.5">
+            {game.isPublic ? <GlobeIcon /> : <LockIcon />}
+            {game.isPublic ? 'Publique' : 'Privée'}
           </span>
         </p>
-        <div className="relative mx-auto mt-5 inline-flex flex-col items-center rounded-md border border-white/10 bg-ink-950/50 px-5 py-3">
-          <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Code</span>
+        <div className="mx-auto mt-6 inline-flex flex-col items-center rounded-xl border border-white/10 bg-ink-950 px-6 py-3">
+          <span className="text-xs text-slate-400">Code</span>
           <span
-            className="select-all font-display text-3xl font-black tracking-[0.2em] text-gradient min-[400px]:text-4xl sm:text-5xl sm:tracking-[0.25em]"
+            className="select-all font-display text-4xl font-semibold tracking-[0.2em] text-white sm:text-5xl"
             data-testid="game-code"
           >
             {game.code}
           </span>
         </div>
         <div>
-          <button type="button" onClick={copy} className="relative mt-3 text-sm text-neon-cyan hover:underline">
-            {copied ? '✓ Lien copié !' : '🔗 Copier le lien d’invitation'}
+          <button
+            type="button"
+            onClick={copy}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+          >
+            {copied ? <CheckIcon /> : <LinkIcon />}
+            {copied ? 'Lien copié' : 'Copier le lien d’invitation'}
           </button>
         </div>
       </div>
@@ -380,18 +383,18 @@ function Lobby({
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="card min-w-0 p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display font-bold uppercase tracking-wide">Joueurs</h2>
-            <span className="rounded-full bg-white/5 px-3 py-1 text-sm tabular-nums text-slate-300">
+            <h2 className="font-display text-xl font-semibold text-white">Joueurs</h2>
+            <span className="text-sm tabular-nums text-slate-400">
               {game.players.length}/{game.maxPlayers}
             </span>
           </div>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {game.players.map((p) => (
-              <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-md bg-ink-800/80 p-2">
+              <li key={p.id} className="flex min-w-0 animate-pop items-center gap-2 rounded-lg bg-ink-850 p-2">
                 <Avatar id={p.avatar} size="sm" ring={p.id === meId} />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold">{p.pseudo}</span>
-                  {p.isHost && <span className="block truncate text-xs text-neon-amber">👑 Organisateur</span>}
+                  <span className="block truncate text-sm font-medium text-slate-100">{p.pseudo}</span>
+                  {p.isHost && <span className="block truncate text-xs text-neon-amber">Organisateur</span>}
                 </span>
               </li>
             ))}
@@ -402,8 +405,9 @@ function Lobby({
       </div>
 
       {game.isHost && (
-        <p className="text-center text-sm text-neon-amber/90 sm:text-right">
-          ⚠️ Garde cette page ouverte : si tu la quittes, la partie est annulée pour tous les joueurs.
+        <p className="flex items-start justify-center gap-2 text-sm text-neon-amber sm:justify-end">
+          <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          Garde cette page ouverte : si tu la quittes, la partie est annulée pour tous les joueurs.
         </p>
       )}
 
@@ -412,13 +416,13 @@ function Lobby({
           {game.isHost ? 'Annuler la partie' : 'Quitter la salle'}
         </Button>
         {game.isHost ? (
-          <Button size="lg" onClick={onStart} loading={starting} className="animate-pulse-glow">
-            Lancer la partie ▶
+          <Button size="lg" onClick={onStart} loading={starting}>
+            Lancer la partie
           </Button>
         ) : (
           <p className="flex items-center gap-2 text-slate-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-neon-cyan" aria-hidden="true" />
-            En attente du lancement par l’organisateur…
+            <span className="h-1.5 w-1.5 rounded-full bg-neon-cyan" aria-hidden="true" />
+            En attente du lancement par l’organisateur
           </p>
         )}
       </div>
@@ -472,7 +476,7 @@ function LobbyChat({
 
   return (
     <section className="card flex min-w-0 flex-col p-5 sm:p-6" aria-labelledby="chat-title">
-      <h2 id="chat-title" className="mb-3 font-display font-bold uppercase tracking-wide">
+      <h2 id="chat-title" className="mb-4 font-display text-xl font-semibold text-white">
         Chat
       </h2>
       <div
@@ -487,7 +491,7 @@ function LobbyChat({
         aria-label="Messages de la salle d’attente"
       >
         {messages.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-500">Aucun message. Dis bonjour aux autres joueurs 👋</p>
+          <p className="py-10 text-center text-sm text-slate-500">Aucun message pour l’instant</p>
         )}
         {messages.map((m) => {
           if (m.kind === 'system')
@@ -502,12 +506,12 @@ function LobbyChat({
               {!mine && <Avatar id={m.avatar ?? ''} size="xs" />}
               <div
                 className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                  mine ? 'rounded-br-sm bg-neon-cyan/15 text-white ring-1 ring-inset ring-neon-cyan/25' : 'rounded-bl-sm bg-ink-800 text-slate-100'
+                  mine ? 'rounded-br-md bg-ink-700 text-white' : 'rounded-bl-md bg-ink-800 text-slate-100'
                 }`}
               >
-                {!mine && <p className="mb-0.5 text-xs font-semibold text-neon-cyan">{m.pseudo}</p>}
+                {!mine && <p className="mb-0.5 text-xs font-medium text-slate-300">{m.pseudo}</p>}
                 <p className="whitespace-pre-wrap break-words">{m.text}</p>
-                <p className={`mt-0.5 text-[0.65rem] ${mine ? 'text-blue-200/70' : 'text-slate-500'}`}>{timeOf(m.createdAt)}</p>
+                <p className="mt-0.5 text-xs text-slate-500">{timeOf(m.createdAt)}</p>
               </div>
             </div>
           );
@@ -523,12 +527,12 @@ function LobbyChat({
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, CHAT_MAX))}
           maxLength={CHAT_MAX}
-          placeholder="Écris un message…"
+          placeholder="Message"
           autoComplete="off"
           enterKeyHint="send"
         />
         <Button type="submit" variant="secondary" loading={sending} disabled={!text.trim()} aria-label="Envoyer le message">
-          <span aria-hidden="true">➤</span>
+          <SendIcon />
           <span className="hidden sm:inline">Envoyer</span>
         </Button>
       </form>
@@ -541,18 +545,20 @@ function RevealBanner({ game }: { game: MultiGameState }) {
   const mine = game.myAnswer;
   if (!mine)
     return (
-      <div className="mb-5 rounded-md border border-white/10 bg-white/5 px-4 py-3 font-display font-bold uppercase text-slate-300">
-        ⏱ Pas de réponse
+      <div className="mb-5 flex items-center gap-2 rounded-lg border border-white/10 bg-ink-800 px-4 py-3 font-medium text-slate-300">
+        <ClockIcon /> Pas de réponse
       </div>
     );
   return mine.isCorrect ? (
-    <div className="mb-5 flex animate-pop items-center justify-between rounded-md border border-neon-green/40 bg-neon-green/10 px-4 py-3">
-      <span className="font-display font-bold uppercase text-neon-green">✓ Bonne réponse !</span>
-      <span className="font-display font-bold text-neon-green">+{mine.points} pts</span>
+    <div className="mb-5 flex animate-pop items-center justify-between rounded-lg border border-neon-green/30 bg-neon-green/[0.08] px-4 py-3">
+      <span className="flex items-center gap-2 font-medium text-neon-green">
+        <CheckIcon /> Bonne réponse
+      </span>
+      <span className="font-display text-xl font-semibold tabular-nums text-neon-green">+{mine.points} pts</span>
     </div>
   ) : (
-    <div className="mb-5 animate-pop rounded-md border border-neon-red/40 bg-neon-red/10 px-4 py-3 font-display font-bold uppercase text-neon-red">
-      ✗ Raté
+    <div className="mb-5 flex animate-pop items-center gap-2 rounded-lg border border-neon-red/30 bg-neon-red/[0.08] px-4 py-3 font-medium text-neon-red">
+      <XIcon /> Raté
     </div>
   );
 }
@@ -564,21 +570,23 @@ function MiniLeaderboard({ players, meId, showDelta }: { players: PlayerStanding
   const row = (p: PlayerStanding) => (
     <li
       key={p.id}
-      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-all duration-500 ${p.id === meId ? 'bg-neon-cyan/10' : ''}`}
+      className={`flex h-9 items-center gap-2 rounded-lg px-2 text-sm transition-colors duration-300 ${p.id === meId ? 'bg-ink-800 ring-1 ring-inset ring-white/10' : ''}`}
     >
-      <span className="w-5 text-center font-display text-xs text-slate-400">{p.rank}</span>
+      <span className="w-5 text-center text-xs tabular-nums text-slate-500">{p.rank}</span>
       <Avatar id={p.avatar} size="xs" />
-      <span className="min-w-0 flex-1 truncate">{p.pseudo}</span>
-      {p.answeredCurrent && !showDelta && <span className="text-xs text-neon-cyan" title="A répondu">●</span>}
-      {showDelta && p.lastPoints !== null && p.lastPoints > 0 && (
-        <span className="text-xs font-semibold text-neon-green">+{p.lastPoints}</span>
+      <span className="min-w-0 flex-1 truncate text-slate-100">{p.pseudo}</span>
+      {p.answeredCurrent && !showDelta && (
+        <span className="h-1.5 w-1.5 rounded-full bg-neon-cyan" title="A répondu" aria-label="A répondu" />
       )}
-      <span className="font-display text-xs font-bold tabular-nums">{formatNumber(p.score)}</span>
+      {showDelta && p.lastPoints !== null && p.lastPoints > 0 && (
+        <span className="text-xs tabular-nums text-neon-green">+{p.lastPoints}</span>
+      )}
+      <span className="w-12 text-right font-display text-sm font-semibold tabular-nums text-white">{formatNumber(p.score)}</span>
     </li>
   );
   return (
     <aside className="card h-fit min-w-0 p-4">
-      <h3 className="mb-3 font-display text-sm font-bold uppercase tracking-wide text-slate-300">Classement</h3>
+      <h3 className="mb-3 px-2 text-sm font-medium text-slate-400">Classement</h3>
       <ol className="space-y-1">{top.map(row)}</ol>
       {meOutside && me && <ol className="mt-2 border-t border-white/5 pt-2">{row(me)}</ol>}
     </aside>
@@ -589,20 +597,19 @@ function FinalResults({ game, meId }: { game: MultiGameState; meId?: string }) {
   const [first, second, third] = game.players;
   const me = game.players.find((p) => p.id === meId);
   const podium: Array<{ p: PlayerStanding | undefined; place: number; height: string; color: string }> = [
-    { p: second, place: 2, height: 'h-24 sm:h-32', color: 'from-slate-300/40' },
-    { p: first, place: 1, height: 'h-32 sm:h-44', color: 'from-neon-amber/50' },
-    { p: third, place: 3, height: 'h-16 sm:h-24', color: 'from-orange-500/40' },
+    { p: second, place: 2, height: 'h-24 sm:h-32', color: 'border-t-slate-300 text-slate-200' },
+    { p: first, place: 1, height: 'h-32 sm:h-44', color: 'border-t-neon-amber text-neon-amber' },
+    { p: third, place: 3, height: 'h-16 sm:h-24', color: 'border-t-[#c9824a] text-[#d9935a]' },
   ];
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <p className="font-display text-sm uppercase tracking-[0.3em] text-neon-cyan">Partie terminée</p>
-        <p className="mt-1 truncate text-slate-400">{game.name}</p>
-        <h1 className="mt-2 font-display text-3xl font-black sm:text-4xl">Podium</h1>
+        <p className="truncate text-sm text-slate-400">Partie terminée · {game.name}</p>
+        <h1 className="mt-2 font-display text-5xl font-semibold uppercase text-white">Podium</h1>
         {me && (
           <p className="mt-3 text-slate-300">
-            Tu termines <strong className="text-white">{me.rank === 1 ? '1er 🏆' : `${me.rank}e`}</strong> avec{' '}
-            <strong className="text-neon-cyan">{formatNumber(me.score)} pts</strong>
+            Tu termines <strong className="font-semibold text-white">{me.rank === 1 ? '1er' : `${me.rank}e`}</strong> avec{' '}
+            <strong className="font-semibold tabular-nums text-neon-cyan">{formatNumber(me.score)} pts</strong>
           </p>
         )}
       </div>
@@ -612,17 +619,15 @@ function FinalResults({ game, meId }: { game: MultiGameState; meId?: string }) {
           <div key={place} className="flex min-w-0 flex-1 flex-col items-center">
             {p ? (
               <>
-                <span className={place === 1 ? 'animate-float' : ''}>
-                  <Avatar id={p.avatar} size={place === 1 ? 'xl' : 'lg'} ring={p.id === meId} />
-                </span>
-                <span className="mt-2 max-w-full truncate text-center text-sm font-semibold">{p.pseudo}</span>
-                <span className="font-display text-xs text-neon-cyan">{formatNumber(p.score)} pts</span>
+                <Avatar id={p.avatar} size={place === 1 ? 'xl' : 'lg'} ring={p.id === meId} />
+                <span className="mt-2 max-w-full truncate text-center text-sm font-medium text-white">{p.pseudo}</span>
+                <span className="text-xs tabular-nums text-slate-400">{formatNumber(p.score)} pts</span>
               </>
             ) : (
               <span className="h-16" />
             )}
-            <div className={`mt-2 flex w-full items-start justify-center rounded-t-xl border border-white/10 bg-gradient-to-b ${color} to-ink-800 pt-2 ${height}`}>
-              <span className="font-display text-2xl font-black">{place}</span>
+            <div className={`mt-2 flex w-full items-start justify-center rounded-t-lg border border-t-2 border-white/[0.08] bg-ink-850 pt-2 ${color} ${height}`}>
+              <span className="font-display text-3xl font-semibold">{place}</span>
             </div>
           </div>
         ))}
@@ -630,12 +635,12 @@ function FinalResults({ game, meId }: { game: MultiGameState; meId?: string }) {
 
       <div className="card mx-auto max-w-xl divide-y divide-white/5">
         {game.players.map((p) => (
-          <div key={p.id} className={`flex items-center gap-3 px-4 py-2.5 ${p.id === meId ? 'bg-neon-cyan/10' : ''}`}>
-            <span className="w-6 text-center font-display text-sm text-slate-400">{p.rank}</span>
+          <div key={p.id} className={`flex items-center gap-3 px-4 py-2.5 ${p.id === meId ? 'bg-ink-800' : ''}`}>
+            <span className="w-6 text-center text-sm tabular-nums text-slate-500">{p.rank}</span>
             <Avatar id={p.avatar} size="sm" />
-            <span className="min-w-0 flex-1 truncate font-medium">{p.pseudo}</span>
-            <span className="shrink-0 text-xs text-slate-400">{p.correctCount}/{game.questionCount}</span>
-            <span className="w-16 shrink-0 text-right font-display text-sm font-bold tabular-nums sm:w-20">{formatNumber(p.score)}</span>
+            <span className="min-w-0 flex-1 truncate font-medium text-slate-100">{p.pseudo}</span>
+            <span className="shrink-0 text-xs tabular-nums text-slate-400">{p.correctCount}/{game.questionCount}</span>
+            <span className="w-16 shrink-0 text-right font-display text-base font-semibold tabular-nums text-white sm:w-20">{formatNumber(p.score)}</span>
           </div>
         ))}
       </div>

@@ -198,14 +198,14 @@ export function CloudDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card min-w-0 p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="font-display font-bold uppercase tracking-wide">Répartition observée</h2>
+            <h2 className="font-display text-xl font-semibold text-white">Répartition observée</h2>
             <Button variant="ghost" size="sm" onClick={resetMetrics}>Réinitialiser</Button>
           </div>
           <DistributionBars counts={metrics.byInstance} total={metrics.total} />
         </section>
 
         <section className="card min-w-0 p-5">
-          <h2 className="mb-1 font-display font-bold uppercase tracking-wide">Générateur de requêtes</h2>
+          <h2 className="mb-1 font-display text-xl font-semibold text-white">Générateur de requêtes</h2>
           <p className="mb-4 text-sm text-slate-400">
             Envoie des requêtes <code className="text-slate-300">GET /api/diag/ping</code> ({CONCURRENCY} en parallèle, 100 max par
             série, pause de {COOLDOWN_MS / 1000} s entre deux séries, limite de débit côté serveur).
@@ -248,7 +248,7 @@ export function CloudDashboardPage() {
       <section className="card p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-display font-bold uppercase tracking-wide">Surveillance continue</h2>
+            <h2 className="font-display text-xl font-semibold text-white">Surveillance continue</h2>
             <p className="text-sm text-slate-400">
               1 requête par seconde. Arrête une instance (<code className="text-slate-300">systemctl stop gaming-quiz</code>) et
               observe la bascule.
@@ -281,7 +281,7 @@ export function CloudDashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card min-w-0 p-5">
-          <h2 className="mb-4 font-display font-bold uppercase tracking-wide">Instance interrogée</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold text-white">Instance interrogée</h2>
           {info ? (
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
               <dt className="text-slate-400">Instance</dt>
@@ -316,7 +316,7 @@ export function CloudDashboardPage() {
         </section>
 
         <section className="card min-w-0 p-5">
-          <h2 className="mb-4 font-display font-bold uppercase tracking-wide">Dernières requêtes</h2>
+          <h2 className="mb-4 font-display text-xl font-semibold text-white">Dernières requêtes</h2>
           {recent.length === 0 ? (
             <p className="text-sm text-slate-500">Aucune requête.</p>
           ) : (

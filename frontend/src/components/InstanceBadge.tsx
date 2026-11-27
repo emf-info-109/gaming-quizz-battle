@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { RefreshIcon } from './Icons';
 import { api } from '../lib/api';
 import { instanceColor } from '../lib/metrics';
 
@@ -39,7 +40,7 @@ export function InstanceBadge() {
       <span className="sm:hidden">API :</span>
       <span
         key={bump}
-        className="inline-flex animate-pop items-center gap-1.5 rounded-md border border-white/10 bg-ink-800 px-2 py-0.5 font-mono font-semibold text-slate-100"
+        className="inline-flex animate-pop items-center gap-1.5 rounded-md border border-white/10 bg-ink-800 px-2 py-0.5 font-mono text-slate-100"
         data-testid="instance-name"
       >
         <span
@@ -53,13 +54,15 @@ export function InstanceBadge() {
         type="button"
         onClick={refresh}
         disabled={loading}
-        className="rounded-md px-1.5 py-0.5 text-base leading-none text-slate-400 transition hover:bg-white/5 hover:text-neon-cyan disabled:opacity-50"
+        className="rounded-md p-1 text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-100 disabled:opacity-50"
         title="Nouvelle requête vers l’API (observer le changement d’instance)"
         aria-label="Interroger à nouveau le serveur API"
       >
-        <span className={`inline-block ${loading ? 'animate-spin' : ''}`}>↻</span>
+        <span className={`block ${loading ? 'animate-spin' : ''}`}>
+          <RefreshIcon className="h-4 w-4" />
+        </span>
       </button>
-      <Link to="/cloud-dashboard" className="hidden text-slate-500 underline-offset-2 hover:text-neon-cyan hover:underline sm:inline">
+      <Link to="/cloud-dashboard" className="hidden text-slate-500 underline-offset-2 hover:text-slate-200 hover:underline sm:inline">
         Tableau de bord Cloud
       </Link>
     </div>

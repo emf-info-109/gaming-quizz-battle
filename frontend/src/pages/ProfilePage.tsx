@@ -91,21 +91,21 @@ export function ProfilePage() {
           <legend className="mb-3 text-sm font-medium text-slate-300">Avatar</legend>
           {AVATAR_GROUPS.map((group) => (
             <div key={group.title}>
-              <p className="label-caps mb-2">{group.title}</p>
+              <p className="mb-2 text-xs text-slate-500">{group.title}</p>
               <div className="grid grid-cols-4 gap-2 min-[400px]:grid-cols-5 sm:grid-cols-6 md:grid-cols-8">
             {group.ids.map((id) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setAvatar(id)}
-                className={`flex flex-col items-center gap-1 rounded-md border p-2 transition ${
-                  avatar === id ? 'border-neon-cyan bg-neon-cyan/10' : 'border-transparent hover:bg-white/5'
+                className={`flex flex-col items-center gap-1 rounded-lg border p-2 transition-colors ${
+                  avatar === id ? 'border-neon-cyan/70 bg-ink-800' : 'border-transparent hover:bg-white/5'
                 }`}
                 aria-pressed={avatar === id}
                 title={avatarOf(id).label}
               >
                 <Avatar id={id} size="md" />
-                <span className="w-full truncate text-center text-[0.65rem] text-slate-400">{avatarOf(id).label}</span>
+                <span className="w-full truncate text-center text-[0.6875rem] text-slate-400">{avatarOf(id).label}</span>
               </button>
             ))}
               </div>
@@ -114,7 +114,7 @@ export function ProfilePage() {
         </fieldset>
 
         {error && <Alert>{error}</Alert>}
-        {saved && <Alert tone="success">Profil mis à jour !</Alert>}
+        {saved && <Alert tone="success">Profil mis à jour</Alert>}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" size="lg" loading={saving} disabled={!valid}>
@@ -136,24 +136,24 @@ export function ProfilePage() {
 
       {player && stats && (
         <section className="mt-8">
-          <h2 className="mb-4 font-display text-lg font-bold uppercase tracking-wide">Mes statistiques</h2>
+          <h2 className="mb-4 font-display text-2xl font-semibold text-white">Mes statistiques</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatTile label="Score cumulé" value={formatNumber(stats.totalScore)} accent="text-neon-cyan" />
             <StatTile label="Parties" value={stats.gamesPlayed} hint={`${stats.soloGames} solo · ${stats.multiGames} multi`} />
             <StatTile label="Bonnes réponses" value={`${stats.correctAnswers}/${stats.questionsSeen}`} />
-            <StatTile label="Réussite" value={formatPercent(stats.successRate)} accent="text-neon-green" />
+            <StatTile label="Réussite" value={formatPercent(stats.successRate)} />
           </div>
           {stats.recentGames.length > 0 && (
             <div className="card mt-4 divide-y divide-white/5">
               {stats.recentGames.map((g) => (
                 <div key={g.gameId} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                   <span className="flex items-center gap-2">
-                    <span className="rounded-md bg-white/5 px-2 py-0.5 text-xs uppercase text-slate-400">{g.mode}</span>
+                    <span className="w-12 text-xs text-slate-500">{g.mode === 'solo' ? 'Solo' : 'Multi'}</span>
                     {g.category ?? 'Toutes catégories'}
                   </span>
                   <span className="text-slate-400">
                     {g.correctCount}/{g.questionCount} ·{' '}
-                    <strong className="text-white tabular-nums">{formatNumber(g.score)} pts</strong>
+                    <strong className="font-semibold tabular-nums text-white">{formatNumber(g.score)} pts</strong>
                   </span>
                 </div>
               ))}

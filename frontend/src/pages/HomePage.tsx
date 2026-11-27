@@ -2,38 +2,32 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Avatar } from '../components/Avatar';
 import { LinkButton } from '../components/Button';
-import { ArrowRightIcon, PlayIcon } from '../components/Icons';
-import { LogoMark } from '../components/Logo';
+import { CategoryLogo } from '../components/CategoryLogo';
+import { ArrowRightIcon, CheckIcon, PlayIcon } from '../components/Icons';
 import { usePlayer } from '../hooks/PlayerContext';
 import { api } from '../lib/api';
 import { formatNumber } from '../lib/format';
 import type { GlobalStats } from '../lib/types';
 
-/** Modes de jeu, présentés comme dans un launcher (sans icône : numéro + titre). */
+/** Modes de jeu, présentés comme dans un launcher : un numéro et un titre, pas d'icône. */
 const MODES = [
   {
     to: '/solo',
     tag: 'Solo',
     title: 'Entraînement',
-    text: '10 questions, 15 secondes chacune. Plus tu es rapide, plus tu marques.',
-    accent: 'from-neon-cyan/25',
-    bar: 'bg-neon-cyan',
+    text: '10 questions, 15 secondes chacune. Plus tu réponds vite, plus tu marques.',
   },
   {
     to: '/multi/create',
     tag: 'Multijoueur',
     title: 'Créer une partie',
     text: 'Nomme ta salle, discute avec les joueurs qui arrivent et défie jusqu’à 29 adversaires.',
-    accent: 'from-neon-violet/25',
-    bar: 'bg-neon-violet',
   },
   {
     to: '/multi/join',
     tag: 'Multijoueur',
     title: 'Rejoindre une partie',
     text: 'Choisis une salle dans la liste des parties en attente, ou entre son code.',
-    accent: 'from-neon-blue/25',
-    bar: 'bg-neon-blue',
   },
 ];
 
@@ -61,123 +55,88 @@ export function HomePage() {
     };
   }, []);
 
+  const value = (n: number | undefined) => (n !== undefined ? formatNumber(n) : statsError ? '—' : '…');
+
   return (
-    <div className="space-y-10 sm:space-y-14">
-      {/* --- Bandeau principal ------------------------------------------------ */}
-      <section className="card relative overflow-hidden px-5 py-8 sm:px-10 sm:py-14">
-        {/* Décor : faisceaux diagonaux, grand éclair en filigrane */}
-        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_30%,rgb(45_226_230/0.10)_45%,transparent_60%),linear-gradient(115deg,transparent_55%,rgb(139_92_246/0.14)_68%,transparent_80%)]" aria-hidden="true" />
-        <LogoMark className="pointer-events-none absolute -right-10 -top-6 h-72 w-72 rotate-12 opacity-[0.07] sm:-right-4 sm:h-96 sm:w-96" />
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-neon-cyan/0 via-neon-cyan/60 to-neon-violet/0" aria-hidden="true" />
-
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-end">
-          <div className="animate-fade-up">
-            <p className="mb-3 flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-[0.3em] text-neon-cyan">
-              <span className="h-0.5 w-8 bg-neon-cyan" aria-hidden="true" />
-              Quiz gaming compétitif
-            </p>
-            <h1 className="font-display text-5xl font-bold uppercase leading-[0.9] tracking-wide text-white sm:text-7xl">
-              Gaming Quiz
-              <span className="block text-gradient">Battle</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-base text-slate-300 sm:text-lg">
-              Minecraft, LoL, CS, Fortnite, Pokémon, WoW… Prouve que tu es le vrai{' '}
-              <span className="font-semibold text-neon-cyan">pro du gaming</span>.
-            </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <LinkButton to="/solo" size="lg">
-                <PlayIcon className="h-5 w-5" />
-                Jouer en solo
-              </LinkButton>
-              <LinkButton to="/multi/join" variant="secondary" size="lg">
-                Multijoueur
-              </LinkButton>
-            </div>
+    <div className="space-y-16">
+      {/* --- Bandeau principal : texte à gauche, aperçu d'une vraie question à droite --- */}
+      <section className="grid animate-fade-up items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-16">
+        <div>
+          <p className="mb-4 text-sm font-medium text-slate-400">Quiz gaming en temps réel</p>
+          <h1 className="font-display text-5xl font-semibold uppercase leading-[0.92] text-white sm:text-7xl">
+            Gaming Quiz
+            <span className="block text-neon-cyan">Battle</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-slate-300">
+            Minecraft, LoL, Counter-Strike, Fortnite, Pokémon et WoW. Des questions chronométrées, en solo ou jusqu’à 30
+            joueurs dans la même salle.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <LinkButton to="/solo" size="lg">
+              <PlayIcon className="h-4 w-4" />
+              Jouer en solo
+            </LinkButton>
+            <LinkButton to="/multi/join" variant="secondary" size="lg">
+              Multijoueur
+            </LinkButton>
           </div>
 
-          {/* Panneau « en direct » */}
-          <div className="animate-fade-up space-y-3 [animation-delay:120ms]">
-            <div className="rounded-md border border-white/10 bg-ink-950/60 p-4">
-              <p className="label-caps flex items-center gap-2">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-neon-green" aria-hidden="true" />
-                En direct
-              </p>
-              <p className="mt-2 font-display text-4xl font-bold leading-none text-white tabular-nums">
-                {stats ? formatNumber(stats.onlinePlayers) : statsError ? '—' : '…'}
-              </p>
-              <p className="text-sm text-slate-400">
-                joueur{stats && stats.onlinePlayers > 1 ? 's' : ''} connecté{stats && stats.onlinePlayers > 1 ? 's' : ''}
-              </p>
-              {stats && (
-                <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/[0.07] pt-3">
-                  <div>
-                    <p className="font-display text-xl font-bold leading-none text-white tabular-nums">{stats.questionCount}</p>
-                    <p className="text-xs text-slate-500">questions</p>
-                  </div>
-                  <div>
-                    <p className="font-display text-xl font-bold leading-none text-white tabular-nums">
-                      {formatNumber(stats.finishedGames)}
-                    </p>
-                    <p className="text-xs text-slate-500">parties jouées</p>
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Joueur connecté (ou invitation à choisir un pseudo) */}
+          {player ? (
+            <Link to="/profile" className="mt-5 inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white">
+              <Avatar id={player.avatar} size="xs" />
+              Connecté en tant que <span className="font-medium text-slate-100">{player.pseudo}</span>
+            </Link>
+          ) : (
+            <Link to="/profile" className="mt-5 inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white">
+              Pas encore de pseudo ? <span className="font-medium text-slate-100">Choisir mon pseudo</span>
+              <ArrowRightIcon />
+            </Link>
+          )}
 
-            {player ? (
-              <Link
-                to="/profile"
-                className="flex items-center gap-3 rounded-md border border-white/10 bg-ink-950/60 p-3 transition hover:border-neon-cyan/50"
-              >
-                <Avatar id={player.avatar} size="sm" />
-                <span className="min-w-0 text-left">
-                  <span className="label-caps block text-[0.65rem]">Connecté</span>
-                  <span className="block truncate font-display text-lg font-bold leading-tight text-white">{player.pseudo}</span>
-                </span>
-                <ArrowRightIcon className="ml-auto h-4 w-4 text-slate-500" />
-              </Link>
-            ) : (
-              <LinkButton to="/profile" variant="secondary" className="w-full">
-                Choisir mon pseudo
-              </LinkButton>
-            )}
-          </div>
+          {/* Chiffres en direct, sous forme de texte calme */}
+          <dl className="mt-10 grid max-w-xl grid-cols-3 gap-4 border-t border-white/[0.08] pt-6">
+            <div>
+              <dt className="flex items-center gap-2 text-sm text-slate-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-neon-green" aria-hidden="true" />
+                En ligne
+              </dt>
+              <dd className="mt-1 font-display text-3xl font-semibold leading-none tabular-nums text-white">{value(stats?.onlinePlayers)}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-400">Questions</dt>
+              <dd className="mt-1 font-display text-3xl font-semibold leading-none tabular-nums text-white">{value(stats?.questionCount)}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-400">Parties jouées</dt>
+              <dd className="mt-1 font-display text-3xl font-semibold leading-none tabular-nums text-white">{value(stats?.finishedGames)}</dd>
+            </div>
+          </dl>
         </div>
+
+        <QuestionPreview />
       </section>
 
       {/* --- Modes de jeu ------------------------------------------------------ */}
       <section aria-labelledby="modes-title">
-        <h2 id="modes-title" className="label-caps mb-4 flex items-center gap-3">
+        <h2 id="modes-title" className="mb-4 text-sm font-medium text-slate-400">
           Modes de jeu
-          <span className="h-px flex-1 bg-white/[0.07]" aria-hidden="true" />
         </h2>
         <div className="grid gap-4 md:grid-cols-3">
           {MODES.map((m, i) => (
             <Link
               key={m.to}
               to={m.to}
-              className="card group relative flex min-h-52 animate-fade-up flex-col overflow-hidden p-6 transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:glow-border"
-              style={{ animationDelay: `${120 + i * 80}ms` }}
+              className="card group flex min-h-52 flex-col p-6 transition-colors duration-150 hover:border-white/15 hover:bg-ink-850"
             >
-              <span
-                className={`absolute inset-0 bg-gradient-to-br ${m.accent} to-transparent opacity-50 transition group-hover:opacity-100`}
-                aria-hidden="true"
-              />
-              {/* Barre de couleur à gauche, qui s'allonge au survol */}
-              <span className={`absolute left-0 top-6 h-10 w-1 ${m.bar} transition-all duration-300 group-hover:h-[calc(100%-3rem)]`} aria-hidden="true" />
-              <span
-                className="absolute -right-2 -top-6 font-display text-8xl font-bold leading-none text-white/[0.04] transition group-hover:text-white/[0.08]"
-                aria-hidden="true"
-              >
-                0{i + 1}
+              <span className="flex items-baseline justify-between text-sm text-slate-400">
+                {m.tag}
+                <span className="font-mono text-xs tabular-nums text-slate-500">0{i + 1}</span>
               </span>
-              <span className="label-caps relative">{m.tag}</span>
-              <h3 className="relative mt-1 font-display text-3xl font-bold uppercase leading-none tracking-wide text-white">
-                {m.title}
-              </h3>
-              <p className="relative mt-3 text-sm text-slate-300">{m.text}</p>
-              <span className="relative mt-auto inline-flex items-center gap-2 pt-5 font-display text-sm font-bold uppercase tracking-[0.2em] text-neon-cyan">
-                C’est parti <ArrowRightIcon className="h-4 w-4 transition group-hover:translate-x-1" />
+              <h3 className="mt-2 font-display text-3xl font-semibold leading-none text-white">{m.title}</h3>
+              <p className="mt-3 text-sm text-slate-400">{m.text}</p>
+              <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-medium text-slate-300 transition-colors group-hover:text-neon-cyan">
+                C’est parti <ArrowRightIcon className="h-4 w-4" />
               </span>
             </Link>
           ))}
@@ -186,25 +145,90 @@ export function HomePage() {
 
       {/* --- Classement et infrastructure ------------------------------------- */}
       <section className="grid gap-4 md:grid-cols-2">
-        <Link to="/leaderboard" className="card group flex items-center gap-4 overflow-hidden p-5 transition hover:border-neon-amber/40">
-          <span className="absolute inset-y-0 left-0 w-1 bg-neon-amber" aria-hidden="true" />
+        <Link to="/leaderboard" className="card group flex items-center gap-4 p-5 transition-colors hover:border-white/15 hover:bg-ink-850">
           <span className="min-w-0">
-            <span className="label-caps block text-neon-amber">Hall of fame</span>
-            <span className="block font-display text-2xl font-bold uppercase leading-tight text-white">Classement général</span>
-            <span className="text-sm text-slate-400">Les meilleurs joueurs, au global et par catégorie.</span>
+            <span className="block text-sm text-neon-amber">Hall of fame</span>
+            <span className="block font-display text-2xl font-semibold leading-tight text-white">Classement général</span>
+            <span className="text-sm text-slate-400">Les meilleurs joueurs, au global et par catégorie</span>
           </span>
-          <ArrowRightIcon className="ml-auto h-5 w-5 shrink-0 text-slate-500 transition group-hover:translate-x-1 group-hover:text-neon-amber" />
+          <ArrowRightIcon className="ml-auto h-5 w-5 shrink-0 text-slate-500 transition-colors group-hover:text-slate-200" />
         </Link>
-        <Link to="/cloud-dashboard" className="card group flex items-center gap-4 overflow-hidden p-5 transition hover:border-neon-cyan/40">
-          <span className="absolute inset-y-0 left-0 w-1 bg-neon-cyan" aria-hidden="true" />
+        <Link to="/cloud-dashboard" className="card group flex items-center gap-4 p-5 transition-colors hover:border-white/15 hover:bg-ink-850">
           <span className="min-w-0">
-            <span className="label-caps block text-neon-cyan">Infrastructure</span>
-            <span className="block font-display text-2xl font-bold uppercase leading-tight text-white">Tableau de bord Cloud</span>
-            <span className="text-sm text-slate-400">Quelle instance répond ? Observe le load balancing en direct.</span>
+            <span className="block text-sm text-slate-400">Infrastructure</span>
+            <span className="block font-display text-2xl font-semibold leading-tight text-white">Tableau de bord Cloud</span>
+            <span className="text-sm text-slate-400">Quelle instance répond ? Observe le load balancing en direct</span>
           </span>
-          <ArrowRightIcon className="ml-auto h-5 w-5 shrink-0 text-slate-500 transition group-hover:translate-x-1 group-hover:text-neon-cyan" />
+          <ArrowRightIcon className="ml-auto h-5 w-5 shrink-0 text-slate-500 transition-colors group-hover:text-slate-200" />
         </Link>
       </section>
     </div>
+  );
+}
+
+/**
+ * Aperçu statique d'une question au moment de la correction, avec une vraie question
+ * de la base (MC-04). C'est le « moment » de la page : la seule zone riche en couleur.
+ */
+const PREVIEW = {
+  prompt: 'Avec quel bloc construit-on le cadre d’un portail du Nether ?',
+  answers: ['La bedrock', 'La netherrack', 'La pierre taillée', 'L’obsidienne'],
+  votes: [2, 5, 1, 14],
+  correct: 3,
+};
+const PREVIEW_LETTERS = [
+  ['A', 'bg-neon-blue text-white'],
+  ['B', 'bg-neon-violet text-white'],
+  ['C', 'bg-neon-cyan text-ink-950'],
+  ['D', 'bg-neon-pink text-white'],
+] as const;
+
+function QuestionPreview() {
+  const total = PREVIEW.votes.reduce((a, b) => a + b, 0);
+  return (
+    <figure className="card p-5 sm:p-6" aria-label="Aperçu d’une question en partie multijoueur">
+      <div className="flex items-center justify-between text-sm text-slate-400">
+        <span className="inline-flex items-center gap-2">
+          <CategoryLogo slug="minecraft" name="Minecraft" size="xs" />
+          Minecraft
+        </span>
+        <span className="tabular-nums">Question 4/10</span>
+      </div>
+      <p className="mt-4 font-display text-2xl font-semibold leading-tight text-white">{PREVIEW.prompt}</p>
+
+      <div className="mt-5 flex items-center justify-between rounded-lg border border-neon-green/30 bg-neon-green/[0.08] px-4 py-2.5 text-sm">
+        <span className="inline-flex items-center gap-2 font-medium text-neon-green">
+          <CheckIcon className="h-4 w-4" />
+          Bonne réponse
+        </span>
+        <span className="font-display text-lg font-semibold tabular-nums text-neon-green">+812 pts</span>
+      </div>
+
+      <ul className="mt-3 space-y-2">
+        {PREVIEW.answers.map((a, i) => {
+          const correct = i === PREVIEW.correct;
+          return (
+            <li
+              key={a}
+              className={`relative flex items-center gap-3 overflow-hidden rounded-lg border px-2 py-2 ${
+                correct ? 'border-neon-green/60 bg-neon-green/[0.06]' : 'border-white/[0.06] bg-ink-850 text-slate-400'
+              }`}
+            >
+              <span className="absolute inset-y-0 left-0 bg-white/[0.04]" style={{ width: `${(PREVIEW.votes[i]! / total) * 100}%` }} aria-hidden="true" />
+              <span
+                className={`chamfer-sm relative flex h-8 w-8 shrink-0 items-center justify-center font-display font-semibold ${PREVIEW_LETTERS[i]![1]} ${
+                  correct ? '' : 'opacity-60'
+                }`}
+              >
+                {PREVIEW_LETTERS[i]![0]}
+              </span>
+              <span className={`relative flex-1 text-sm ${correct ? 'font-medium text-white' : ''}`}>{a}</span>
+              <span className="relative w-6 text-right text-sm tabular-nums text-slate-500">{PREVIEW.votes[i]}</span>
+            </li>
+          );
+        })}
+      </ul>
+      <figcaption className="mt-4 text-xs text-slate-500">Exemple : 22 joueurs, correction de la question 4</figcaption>
+    </figure>
   );
 }

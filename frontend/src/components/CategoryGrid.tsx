@@ -14,30 +14,24 @@ export function CategoryGrid({ categories, onPick, busySlug }: Props) {
     slug: 'all',
     name: 'Toutes catégories',
     description: 'Un mélange de tous les univers',
-    icon: '🎲',
-    color: '#22d3ee',
+    icon: '',
+    color: '#2de2e6',
     questionCount: categories.reduce((n, c) => n + c.questionCount, 0),
   };
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {[all, ...categories].map((c, i) => (
+      {[all, ...categories].map((c) => (
         <button
           key={c.slug}
           type="button"
           onClick={() => onPick(c.slug)}
           disabled={Boolean(busySlug)}
-          className="card group relative animate-fade-up overflow-hidden p-5 text-left transition duration-200 hover:-translate-y-1 hover:border-white/20 disabled:opacity-60"
-          style={{ animationDelay: `${i * 40}ms` }}
+          className="card relative flex flex-col overflow-hidden p-5 text-left transition-colors duration-150 hover:border-white/15 hover:bg-ink-850 disabled:opacity-60"
         >
-          <span
-            className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-20 blur-2xl transition group-hover:opacity-40"
-            style={{ background: c.color }}
-            aria-hidden="true"
-          />
           <CategoryLogo slug={c.slug} name={c.name} size="lg" />
-          <h3 className="mt-3 font-display text-xl font-bold uppercase leading-tight tracking-wide text-white">{c.name}</h3>
+          <h3 className="mt-4 font-display text-xl font-semibold leading-tight text-white">{c.name}</h3>
           <p className="mt-1 text-sm text-slate-400">{c.description}</p>
-          <p className="mt-3 text-xs text-slate-500">{c.questionCount} questions</p>
+          <p className="mt-auto pt-4 text-xs tabular-nums text-slate-500">{c.questionCount} questions</p>
           {busySlug === c.slug && (
             <span className="absolute inset-0 flex items-center justify-center bg-ink-900/70">
               <span className="h-6 w-6 animate-spin rounded-full border-2 border-neon-cyan border-t-transparent" />

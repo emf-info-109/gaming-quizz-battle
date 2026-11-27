@@ -6,12 +6,12 @@ export function Avatar({ id, size = 'md', ring = false }: { id: string; size?: k
   const a = avatarOf(id);
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full ${SIZES[size]} ${ring ? 'ring-2 ring-neon-cyan ring-offset-2 ring-offset-ink-900' : ''}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full ${SIZES[size]} ${ring ? 'ring-2 ring-neon-cyan/80 ring-offset-2 ring-offset-ink-900' : ''}`}
       style={{ background: `linear-gradient(135deg, ${a.from}, ${a.to})` }}
       role="img"
       aria-label={a.label}
     >
-      <span className="drop-shadow">{a.emoji}</span>
+      <span>{a.emoji}</span>
     </span>
   );
 }

@@ -5,16 +5,14 @@ export function TimerBar({ remainingMs, totalMs }: { remainingMs: number; totalM
   const danger = remainingMs <= 5000;
   return (
     <div className="flex items-center gap-3" aria-label={`${seconds} secondes restantes`}>
-      <div className="h-3 flex-1 overflow-hidden rounded-full bg-ink-700">
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink-700">
         <div
-          className={`h-full rounded-full transition-[width] duration-100 ease-linear ${
-            danger ? 'bg-gradient-to-r from-neon-red to-neon-pink' : 'bg-gradient-to-r from-neon-cyan via-neon-blue to-neon-violet'
-          }`}
-          style={{ width: `${ratio * 100}%` }}
+          className={`h-full origin-left rounded-full transition-[transform,background-color] duration-100 ease-linear ${danger ? 'bg-neon-red' : 'bg-neon-cyan'}`}
+          style={{ transform: `scaleX(${ratio})` }}
         />
       </div>
       <span
-        className={`w-12 text-right font-display text-xl font-bold tabular-nums ${danger ? 'text-neon-red' : 'text-neon-cyan'}`}
+        className={`w-10 text-right font-display text-2xl font-semibold leading-none tabular-nums ${danger ? 'text-neon-red' : 'text-slate-100'}`}
       >
         {seconds}
       </span>
